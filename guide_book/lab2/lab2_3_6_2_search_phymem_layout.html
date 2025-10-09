@@ -1,0 +1,1332 @@
+
+<!DOCTYPE HTML>
+<html lang="" >
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>物理内存探测 · GitBook</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.3">
+        
+        
+        
+    
+    <link rel="stylesheet" href="../gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="../gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="lab2_3_6_3_phymem_allocation.html" />
+    
+    
+    <link rel="prev" href="lab2_3_6_1_pmm_init.html" />
+    
+
+    </head>
+    <body>
+        
+<div class="book">
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search" />
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="../">
+            
+                <a href="../index.html">
+            
+                    
+                    欢迎来到ucore step-by-step的世界
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" data-path="../lab0/intro.html">
+            
+                <a href="../lab0/intro.html">
+            
+                    
+                    lab0: 预备起
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.2.1" data-path="../lab0/1_history.html">
+            
+                <a href="../lab0/1_history.html">
+            
+                    
+                    溯源: ucore的历史
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.2" data-path="../lab0/2_overview.html">
+            
+                <a href="../lab0/2_overview.html">
+            
+                    
+                    概览: 指导书的结构
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.3" data-path="../lab0/0_Linux.html">
+            
+                <a href="../lab0/0_Linux.html">
+            
+                    
+                    预备：Linux安装与熟悉
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.4" data-path="../lab0/softwares.html">
+            
+                <a href="../lab0/softwares.html">
+            
+                    
+                    起步：常用软件熟悉
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.5" data-path="../lab0/3_startdash.html">
+            
+                <a href="../lab0/3_startdash.html">
+            
+                    
+                    开搞: 实验环境搭建
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="../lab1/lab1.html">
+            
+                <a href="../lab1/lab1.html">
+            
+                    
+                    lab1: 比麻雀更小的麻雀(最小可执行内核)
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.3.1" data-path="../lab1/lab1_1_goals.html">
+            
+                <a href="../lab1/lab1_1_goals.html">
+            
+                    
+                    实验目的
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.2" data-path="../lab1/lab1_2_labs.html">
+            
+                <a href="../lab1/lab1_2_labs.html">
+            
+                    
+                    实验内容
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.3.2.1" data-path="../lab1/lab1_2_1_exercise.html">
+            
+                <a href="../lab1/lab1_2_1_exercise.html">
+            
+                    
+                    练习
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.2.2" data-path="../lab1/lab1_2_2_file.html">
+            
+                <a href="../lab1/lab1_2_2_file.html">
+            
+                    
+                    项目组成
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.3" data-path="../lab1/lab1_3_booting.html">
+            
+                <a href="../lab1/lab1_3_booting.html">
+            
+                    
+                    从机器启动到操作系统运行的过程
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.3.3.1" data-path="../lab1/lab1_3_1_layout.html">
+            
+                <a href="../lab1/lab1_3_1_layout.html">
+            
+                    
+                    OpenSBI,bin,ELF
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.3.2" data-path="../lab1/lab1_3_2_linkerscript.html">
+            
+                <a href="../lab1/lab1_3_2_linkerscript.html">
+            
+                    
+                    内存布局，链接脚本，入口点
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.3.3" data-path="../lab1/lab1_3_3_sbi_io.html">
+            
+                <a href="../lab1/lab1_3_3_sbi_io.html">
+            
+                    
+                    从SBI到stio
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.3.4" data-path="../lab1/lab1_3_4_makeit.html">
+            
+                <a href="../lab1/lab1_3_4_makeit.html">
+            
+                    
+                    Just make it
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.4" data-path="../lab1/lab1_4_gdb.html">
+            
+                <a href="../lab1/lab1_4_gdb.html">
+            
+                    
+                    GDB调试
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.5" data-path="../lab1/lab1_5_requirement.html">
+            
+                <a href="../lab1/lab1_5_requirement.html">
+            
+                    
+                    实验报告要求
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="lab2.html">
+            
+                <a href="lab2.html">
+            
+                    
+                    lab2:物理内存和页表
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.4.1" data-path="lab2_1_goal.html">
+            
+                <a href="lab2_1_goal.html">
+            
+                    
+                    实验目的
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.2" data-path="lab2_2_contents.html">
+            
+                <a href="lab2_2_contents.html">
+            
+                    
+                    实验内容
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.4.2.1" data-path="lab2_2_1_exercise.html">
+            
+                <a href="lab2_2_1_exercise.html">
+            
+                    
+                    练习
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.2.2" data-path="lab2_2_2_files.html">
+            
+                <a href="lab2_2_2_files.html">
+            
+                    
+                    项目组成
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3" data-path="lab2_3_pmpt.html">
+            
+                <a href="lab2_3_pmpt.html">
+            
+                    
+                    物理内存管理
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.4.3.1" data-path="lab2_3_1_principles.html">
+            
+                <a href="lab2_3_1_principles.html">
+            
+                    
+                    基本原理概述
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3.2" data-path="lab2_3_2_labs_steps.html">
+            
+                <a href="lab2_3_2_labs_steps.html">
+            
+                    
+                    实验执行流程概述
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3.3" data-path="lab2_3_3_phymem_page.html">
+            
+                <a href="lab2_3_3_phymem_page.html">
+            
+                    
+                    以页为单位管理物理内存
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3.4" data-path="lab2_3_4_phymem_tlb.html">
+            
+                <a href="lab2_3_4_phymem_tlb.html">
+            
+                    
+                    建立快表以加快访问效率
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3.5" data-path="lab2_3_5_page.html">
+            
+                <a href="lab2_3_5_page.html">
+            
+                    
+                    分页机制的设计思路
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.4.3.5.1" data-path="lab2_3_5_1_key_problems_in_seg_page.html">
+            
+                <a href="lab2_3_5_1_key_problems_in_seg_page.html">
+            
+                    
+                    建立段页式管理中需要考虑的关键问题
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3.5.2" data-path="lab2_3_5_2_kernel_initialization.html">
+            
+                <a href="lab2_3_5_2_kernel_initialization.html">
+            
+                    
+                    实现分页机制
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3.6" data-path="lab2_3_6_pmpt.html">
+            
+                <a href="lab2_3_6_pmpt.html">
+            
+                    
+                    物理内存管理的设计思路
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.4.3.6.1" data-path="lab2_3_6_1_pmm_init.html">
+            
+                <a href="lab2_3_6_1_pmm_init.html">
+            
+                    
+                    物理内存管理的实现
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter active" data-level="1.4.3.6.2" data-path="lab2_3_6_2_search_phymem_layout.html">
+            
+                <a href="lab2_3_6_2_search_phymem_layout.html">
+            
+                    
+                    物理内存探测
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3.6.3" data-path="lab2_3_6_3_phymem_allocation.html">
+            
+                <a href="lab2_3_6_3_phymem_allocation.html">
+            
+                    
+                    页面分配算法
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.4" data-path="lab2_4_labs_requirement.html">
+            
+                <a href="lab2_4_labs_requirement.html">
+            
+                    
+                    实验报告要求
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5" data-path="../lab3/lab3.html">
+            
+                <a href="../lab3/lab3.html">
+            
+                    
+                    lab3: 中断与中断处理流程
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.5.1" data-path="../lab3/lab3_1_goals.html">
+            
+                <a href="../lab3/lab3_1_goals.html">
+            
+                    
+                    实验目的
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5.2" data-path="../lab3/lab3_2_labs.html">
+            
+                <a href="../lab3/lab3_2_labs.html">
+            
+                    
+                    实验内容
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.5.2.1" data-path="../lab3/lab3_2_1_exercise.html">
+            
+                <a href="../lab3/lab3_2_1_exercise.html">
+            
+                    
+                    练习
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5.2.2" data-path="../lab3/lab3_2_2_files.html">
+            
+                <a href="../lab3/lab3_2_2_files.html">
+            
+                    
+                    项目组成
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5.3" data-path="../lab3/lab3_3_interrupt.html">
+            
+                <a href="../lab3/lab3_3_interrupt.html">
+            
+                    
+                    中断与中断处理流程
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.5.3.1" data-path="../lab3/lab3_3_1_introduce.html">
+            
+                <a href="../lab3/lab3_3_1_introduce.html">
+            
+                    
+                    riscv64中断介绍
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5.3.2" data-path="../lab3/lab3_3_2_trapentry.html">
+            
+                <a href="../lab3/lab3_3_2_trapentry.html">
+            
+                    
+                    调入兔子洞（中断入口点）
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5.3.3" data-path="../lab1/lab1_3_3_trap.md">
+            
+                <span>
+            
+                    
+                    中断处理流程
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5.3.4" data-path="../lab3/lab3_3_4_clock.html">
+            
+                <a href="../lab3/lab3_3_4_clock.html">
+            
+                    
+                    滴答滴答（时钟中断）
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5.3.5" data-path="../lab3/lab3_3_5_atomic.html">
+            
+                <a href="../lab3/lab3_3_5_atomic.html">
+            
+                    
+                    断亦有断（中断的关闭和开启）
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5.4" data-path="../lab3/lab3_4_lab_requirement.html">
+            
+                <a href="../lab3/lab3_4_lab_requirement.html">
+            
+                    
+                    实验报告要求
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="../index.html" >物理内存探测</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h4 id="&#x7269;&#x7406;&#x5185;&#x5B58;&#x63A2;&#x6D4B;">&#x7269;&#x7406;&#x5185;&#x5B58;&#x63A2;&#x6D4B;</h4>
+<p>&#x64CD;&#x4F5C;&#x7CFB;&#x7EDF;&#x600E;&#x6837;&#x77E5;&#x9053;&#x7269;&#x7406;&#x5185;&#x5B58;&#x6240;&#x5728;&#x7684;&#x90A3;&#x6BB5;&#x7269;&#x7406;&#x5730;&#x5740;&#x5462;&#xFF1F;&#x5728; RISC-V &#x4E2D;&#xFF0C;&#x8FD9;&#x4E2A;&#x4E00;&#x822C;&#x662F;&#x7531; bootloader &#xFF0C;&#x5373; OpenSBI &#x6765;&#x5B8C;&#x6210;&#x7684;&#x3002;&#x5B83;&#x6765;&#x5B8C;&#x6210;&#x5BF9;&#x4E8E;&#x5305;&#x62EC;&#x7269;&#x7406;&#x5185;&#x5B58;&#x5728;&#x5185;&#x7684;&#x5404;&#x5916;&#x8BBE;&#x7684;&#x626B;&#x63CF;&#xFF0C;&#x5C06;&#x626B;&#x63CF;&#x7ED3;&#x679C;&#x4EE5; DTB(Device Tree Blob) &#x7684;&#x683C;&#x5F0F;&#x4FDD;&#x5B58;&#x5728;&#x7269;&#x7406;&#x5185;&#x5B58;&#x4E2D;&#x7684;&#x67D0;&#x4E2A;&#x5730;&#x65B9;&#x3002;&#x968F;&#x540E; OpenSBI &#x4F1A;&#x5C06;&#x5176;&#x5730;&#x5740;&#x4FDD;&#x5B58;&#x5728; <code>a1</code> &#x5BC4;&#x5B58;&#x5668;&#x4E2D;&#xFF0C;&#x7ED9;&#x6211;&#x4EEC;&#x4F7F;&#x7528;&#x3002;</p>
+<p>&#x8FD9;&#x4E2A;&#x626B;&#x63CF;&#x7ED3;&#x679C;&#x63CF;&#x8FF0;&#x4E86;&#x6240;&#x6709;&#x5916;&#x8BBE;&#x7684;&#x4FE1;&#x606F;&#xFF0C;&#x5F53;&#x4E2D;&#x4E5F;&#x5305;&#x62EC; Qemu &#x6A21;&#x62DF;&#x7684; RISC-V &#x8BA1;&#x7B97;&#x673A;&#x4E2D;&#x7684;&#x7269;&#x7406;&#x5185;&#x5B58;&#x3002;</p>
+<blockquote>
+<p>&#x6269;&#x5C55; <strong>Qemu &#x6A21;&#x62DF;&#x7684; RISC-V virt &#x8BA1;&#x7B97;&#x673A;&#x4E2D;&#x7684;&#x7269;&#x7406;&#x5185;&#x5B58;</strong></p>
+<p>&#x901A;&#x8FC7;&#x67E5;&#x770B;<a href="https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c" target="_blank">virt.c</a>&#x7684;<strong>virt_memmap[]</strong>&#x7684;&#x5B9A;&#x4E49;&#xFF0C;&#x53EF;&#x4EE5;&#x4E86;&#x89E3;&#x5230; Qemu &#x6A21;&#x62DF;&#x7684; RISC-V virt &#x8BA1;&#x7B97;&#x673A;&#x7684;&#x8BE6;&#x7EC6;&#x7269;&#x7406;&#x5185;&#x5B58;&#x5E03;&#x5C40;&#x3002;&#x53EF;&#x4EE5;&#x770B;&#x5230;&#xFF0C;&#x6574;&#x4E2A;&#x7269;&#x7406;&#x5185;&#x5B58;&#x4E2D;&#x6709;&#x4E0D;&#x5C11;&#x5185;&#x5B58;&#x7A7A;&#x6D1E;&#xFF08;&#x5373;&#x542B;&#x4E49;&#x4E3A;<strong>unmapped</strong>&#x7684;&#x5730;&#x5740;&#x7A7A;&#x95F4;&#xFF09;&#xFF0C;&#x4E5F;&#x6709;&#x5F88;&#x591A;&#x5916;&#x8BBE;&#x7279;&#x5B9A;&#x7684;&#x5730;&#x5740;&#x7A7A;&#x95F4;&#xFF0C;&#x73B0;&#x5728;&#x6211;&#x4EEC;&#x770B;&#x4E0D;&#x61C2;&#x6CA1;&#x6709;&#x5173;&#x7CFB;&#xFF0C;&#x540E;&#x9762;&#x4F1A;&#x6162;&#x6162;&#x6D89;&#x53CA;&#x5230;&#x3002;&#x76EE;&#x524D;&#x53EA;&#x9700;&#x5173;&#x5FC3;&#x6700;&#x540E;&#x4E00;&#x5757;&#x542B;&#x4E49;&#x4E3A;<strong>DRAM</strong>&#x7684;&#x5730;&#x5740;&#x7A7A;&#x95F4;&#xFF0C;&#x8FD9;&#x5C31;&#x662F; OS &#x5C06;&#x8981;&#x7BA1;&#x7406;&#x7684; 128MB &#x7684;&#x5185;&#x5B58;&#x7A7A;&#x95F4;&#x3002;</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">&#x8D77;&#x59CB;&#x5730;&#x5740;</th>
+<th style="text-align:left">&#x7EC8;&#x6B62;&#x5730;&#x5740;</th>
+<th style="text-align:left">&#x542B;&#x4E49;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">0x0</td>
+<td style="text-align:left">0x100</td>
+<td style="text-align:left">QEMU VIRT_DEBUG</td>
+</tr>
+<tr>
+<td style="text-align:left">0x100</td>
+<td style="text-align:left">0x1000</td>
+<td style="text-align:left">unmapped</td>
+</tr>
+<tr>
+<td style="text-align:left">0x1000</td>
+<td style="text-align:left">0x12000</td>
+<td style="text-align:left">QEMU MROM (&#x5305;&#x62EC; hard-coded reset vector; device tree)</td>
+</tr>
+<tr>
+<td style="text-align:left">0x12000</td>
+<td style="text-align:left">0x100000</td>
+<td style="text-align:left">unmapped</td>
+</tr>
+<tr>
+<td style="text-align:left">0x100000</td>
+<td style="text-align:left">0x101000</td>
+<td style="text-align:left">QEMU VIRT_TEST</td>
+</tr>
+<tr>
+<td style="text-align:left">0x101000</td>
+<td style="text-align:left">0x2000000</td>
+<td style="text-align:left">unmapped</td>
+</tr>
+<tr>
+<td style="text-align:left">0x2000000</td>
+<td style="text-align:left">0x2010000</td>
+<td style="text-align:left">QEMU VIRT_CLINT</td>
+</tr>
+<tr>
+<td style="text-align:left">0x2010000</td>
+<td style="text-align:left">0x3000000</td>
+<td style="text-align:left">unmapped</td>
+</tr>
+<tr>
+<td style="text-align:left">0x3000000</td>
+<td style="text-align:left">0x3010000</td>
+<td style="text-align:left">QEMU VIRT_PCIE_PIO</td>
+</tr>
+<tr>
+<td style="text-align:left">0x3010000</td>
+<td style="text-align:left">0xc000000</td>
+<td style="text-align:left">unmapped</td>
+</tr>
+<tr>
+<td style="text-align:left">0xc000000</td>
+<td style="text-align:left">0x10000000</td>
+<td style="text-align:left">QEMU VIRT_PLIC</td>
+</tr>
+<tr>
+<td style="text-align:left">0x10000000</td>
+<td style="text-align:left">0x10000100</td>
+<td style="text-align:left">QEMU VIRT_UART0</td>
+</tr>
+<tr>
+<td style="text-align:left">0x10000100</td>
+<td style="text-align:left">0x10001000</td>
+<td style="text-align:left">unmapped</td>
+</tr>
+<tr>
+<td style="text-align:left">0x10001000</td>
+<td style="text-align:left">0x10002000</td>
+<td style="text-align:left">QEMU VIRT_VIRTIO</td>
+</tr>
+<tr>
+<td style="text-align:left">0x10002000</td>
+<td style="text-align:left">0x20000000</td>
+<td style="text-align:left">unmapped</td>
+</tr>
+<tr>
+<td style="text-align:left">0x20000000</td>
+<td style="text-align:left">0x24000000</td>
+<td style="text-align:left">QEMU VIRT_FLASH</td>
+</tr>
+<tr>
+<td style="text-align:left">0x24000000</td>
+<td style="text-align:left">0x30000000</td>
+<td style="text-align:left">unmapped</td>
+</tr>
+<tr>
+<td style="text-align:left">0x30000000</td>
+<td style="text-align:left">0x40000000</td>
+<td style="text-align:left">QEMU VIRT_PCIE_ECAM</td>
+</tr>
+<tr>
+<td style="text-align:left">0x40000000</td>
+<td style="text-align:left">0x80000000</td>
+<td style="text-align:left">QEMU VIRT_PCIE_MMIO</td>
+</tr>
+<tr>
+<td style="text-align:left">0x80000000</td>
+<td style="text-align:left">0x88000000</td>
+<td style="text-align:left">DRAM &#x7F3A;&#x7701; 128MB&#xFF0C;&#x5927;&#x5C0F;&#x53EF;&#x914D;&#x7F6E;</td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<p>&#x90A3;&#x4E48;&#x6211;&#x4EEC;&#x5C31;&#x53EF;&#x4EE5;&#x5F88;&#x65B9;&#x4FBF;&#x7684;&#x4ECE;a1&#x5BC4;&#x5B58;&#x5668;&#x4E2D;&#x8BFB;&#x53D6;&#x8BBE;&#x5907;&#x6811;&#x6570;&#x636E;&#x5B58;&#x50A8;&#x5730;&#x5740;&#xFF0C;&#x5728;kern_entry&#x7684;&#x5F00;&#x5934;&#x5C06;&#x8BBE;&#x5907;&#x6811;&#x6570;&#x636E;&#x4ECE;a1&#x5BC4;&#x5B58;&#x5668;&#x4E2D;&#x8BFB;&#x53D6;&#x51FA;&#x6765;&#xFF0C;&#x5E76;&#x5B58;&#x5165;&#x5168;&#x5C40;&#x53D8;&#x91CF;<code>boot_dtb</code>&#x4E2D;&#xFF08;&#x987A;&#x4FBF;&#x8BFB;&#x53D6;&#x4E86;&#x5F53;&#x524D;cpu&#x6838;&#x5FC3;&#x53F7;&#xFF09;</p>
+<pre><code class="lang-asm"># kern\init\entry.S
+# a0: hartid
+# a1: dtb physical address
+# save hartid and dtb address
+la t0, boot_hartid
+sd a0, 0(t0)
+la t0, boot_dtb
+</code></pre>
+<p>&#x5728;kern_entry&#x90E8;&#x5206;&#x7684;&#x521D;&#x59CB;&#x5316;&#x7ED3;&#x675F;&#xFF0C;&#x6211;&#x4EEC;&#x6B63;&#x5F0F;&#x8FDB;&#x5165;&#x5230;kern_init&#x4E4B;&#x540E;&#xFF0C;&#x4F1A;&#x6267;&#x884C;dtb_init&#x51FD;&#x6570;&#x6765;&#x8BFB;&#x53D6;&#x8BBE;&#x5907;&#x6811;&#x7ED3;&#x6784;&#x4E2D;&#x50A8;&#x5B58;&#x7684;&#x76F8;&#x5173;&#x4FE1;&#x606F;&#x3002;&#x5BF9;&#x8BBE;&#x5907;&#x6811;&#x7ED3;&#x6784;&#x611F;&#x5174;&#x8DA3;&#x7684;&#x53EF;&#x4EE5;&#x70B9;&#x51FB;<a href="https://blog.csdn.net/Rank_d/article/details/106289183" target="_blank">&#x94FE;&#x63A5;</a>&#x4E86;&#x89E3;</p>
+<pre><code class="lang-c"><span class="hljs-comment">// kern\init\init.c</span>
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">kern_init</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span> </span>{
+    <span class="hljs-keyword">extern</span> <span class="hljs-keyword">char</span> edata[], end[];
+    <span class="hljs-comment">// &#x5148;&#x6E05;&#x96F6; BSS&#xFF0C;&#x518D;&#x8BFB;&#x53D6;&#x5E76;&#x4FDD;&#x5B58; DTB &#x7684;&#x5185;&#x5B58;&#x4FE1;&#x606F;&#xFF0C;&#x907F;&#x514D;&#x88AB;&#x6E05;&#x96F6;&#x8986;&#x76D6;&#xFF08;&#x4E3A;&#x4E86;&#x89E3;&#x91CA;&#x53D8;&#x5316; &#x6B63;&#x5F0F;&#x4E0A;&#x4F20;&#x65F6;&#x6211;&#x89C9;&#x5F97;&#x5E94;&#x8BE5;&#x5220;&#x53BB;&#x8FD9;&#x53E5;&#x8BDD;&#xFF09;</span>
+    <span class="hljs-built_in">memset</span>(edata, <span class="hljs-number">0</span>, end - edata);
+    dtb_init();
+    <span class="hljs-comment">// &#x5176;&#x4ED6;&#x521D;&#x59CB;&#x5316;</span>
+}
+<span class="hljs-comment">// kern\driver\dtb.c</span>
+<span class="hljs-comment">// &#x4FDD;&#x5B58;&#x89E3;&#x6790;&#x51FA;&#x7684;&#x7CFB;&#x7EDF;&#x7269;&#x7406;&#x5185;&#x5B58;&#x4FE1;&#x606F;</span>
+<span class="hljs-keyword">static</span> <span class="hljs-keyword">uint64_t</span> memory_base = <span class="hljs-number">0</span>;
+<span class="hljs-keyword">static</span> <span class="hljs-keyword">uint64_t</span> memory_size = <span class="hljs-number">0</span>;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">dtb_init</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span> </span>{
+    cprintf(<span class="hljs-string">&quot;DTB Init\n&quot;</span>);
+    cprintf(<span class="hljs-string">&quot;HartID: %ld\n&quot;</span>, boot_hartid);
+    cprintf(<span class="hljs-string">&quot;DTB Address: 0x%lx\n&quot;</span>, boot_dtb);
+
+    <span class="hljs-keyword">if</span> (boot_dtb == <span class="hljs-number">0</span>) {
+        cprintf(<span class="hljs-string">&quot;Error: DTB address is null\n&quot;</span>);
+        <span class="hljs-keyword">return</span>;
+    }
+
+    <span class="hljs-comment">// &#x8F6C;&#x6362;&#x4E3A;&#x865A;&#x62DF;&#x5730;&#x5740;</span>
+    <span class="hljs-keyword">uintptr_t</span> dtb_vaddr = boot_dtb + PHYSICAL_MEMORY_OFFSET;
+    <span class="hljs-keyword">const</span> <span class="hljs-keyword">struct</span> fdt_header *header = (<span class="hljs-keyword">const</span> <span class="hljs-keyword">struct</span> fdt_header *)dtb_vaddr;
+
+    <span class="hljs-comment">// &#x9A8C;&#x8BC1;DTB</span>
+    <span class="hljs-keyword">uint32_t</span> magic = fdt32_to_cpu(header-&gt;magic);
+    <span class="hljs-keyword">if</span> (magic != <span class="hljs-number">0xd00dfeed</span>) {
+        cprintf(<span class="hljs-string">&quot;Error: Invalid DTB magic number: 0x%x\n&quot;</span>, magic);
+        <span class="hljs-keyword">return</span>;
+    }
+
+    <span class="hljs-comment">// &#x63D0;&#x53D6;&#x5185;&#x5B58;&#x4FE1;&#x606F;</span>
+    <span class="hljs-keyword">uint64_t</span> mem_base, mem_size;
+    <span class="hljs-keyword">if</span> (extract_memory_info(dtb_vaddr, header, &amp;mem_base, &amp;mem_size) == <span class="hljs-number">0</span>) {
+        cprintf(<span class="hljs-string">&quot;Physical Memory from DTB:\n&quot;</span>);
+        cprintf(<span class="hljs-string">&quot;  Base: 0x%016lx\n&quot;</span>, mem_base);
+        cprintf(<span class="hljs-string">&quot;  Size: 0x%016lx (%ld MB)\n&quot;</span>, mem_size, mem_size / (<span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>));
+        cprintf(<span class="hljs-string">&quot;  End:  0x%016lx\n&quot;</span>, mem_base + mem_size - <span class="hljs-number">1</span>);
+        <span class="hljs-comment">// &#x4FDD;&#x5B58;&#x5230;&#x5168;&#x5C40;&#x53D8;&#x91CF;&#xFF0C;&#x4F9B; PMM &#x67E5;&#x8BE2;</span>
+        memory_base = mem_base;
+        memory_size = mem_size;
+    } <span class="hljs-keyword">else</span> {
+        cprintf(<span class="hljs-string">&quot;Warning: Could not extract memory info from DTB\n&quot;</span>);
+    }
+    cprintf(<span class="hljs-string">&quot;DTB init completed\n&quot;</span>);
+}
+</code></pre>
+<p>&#x7531;&#x6B64;&#xFF0C;&#x6211;&#x4EEC;&#x5C31;&#x5DF2;&#x7ECF;&#x5C06;&#x5185;&#x5B58;&#x7684;&#x8D77;&#x70B9;&#x548C;&#x5927;&#x5C0F;&#x8BFB;&#x53D6;&#x5230;&#x4E86;&#x5168;&#x5C40;&#x53D8;&#x91CF;<code>memory_base</code>&#x548C;<code>memory_size</code>&#x4E2D;&#xFF0C;&#x6211;&#x4EEC;&#x4F1A;&#x5728;&#x7269;&#x7406;&#x5185;&#x5B58;&#x7BA1;&#x7406;&#x521D;&#x59CB;&#x5316;&#x7684;&#x65F6;&#x5019;&#x7528;&#x5230;&#x8FD9;&#x4E9B;&#x4FE1;&#x606F;</p>
+<pre><code class="lang-c"><span class="hljs-comment">// kern\mm\pmm.c</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">pmm_init</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span> </span>{
+    <span class="hljs-comment">// other things</span>
+    page_init();
+    <span class="hljs-comment">// other things</span>
+}
+<span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title">page_init</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span> </span>{
+    va_pa_offset = PHYSICAL_MEMORY_OFFSET;
+
+    <span class="hljs-keyword">uint64_t</span> mem_begin = get_memory_base();
+    <span class="hljs-keyword">uint64_t</span> mem_size  = get_memory_size();
+    <span class="hljs-keyword">if</span> (mem_size == <span class="hljs-number">0</span>) {
+        panic(<span class="hljs-string">&quot;DTB memory info not available&quot;</span>);
+    }
+    <span class="hljs-keyword">uint64_t</span> mem_end   = mem_begin + mem_size;
+
+    cprintf(<span class="hljs-string">&quot;physcial memory map:\n&quot;</span>);
+    cprintf(<span class="hljs-string">&quot;  memory: 0x%016lx, [0x%016lx, 0x%016lx].\n&quot;</span>, mem_size, mem_begin,
+            mem_end - <span class="hljs-number">1</span>);
+
+    <span class="hljs-keyword">uint64_t</span> maxpa = mem_end;
+
+    <span class="hljs-keyword">if</span> (maxpa &gt; KERNTOP) {
+        maxpa = KERNTOP;
+    }
+
+    <span class="hljs-keyword">extern</span> <span class="hljs-keyword">char</span> end[];
+
+    npage = maxpa / PGSIZE;
+    pages = (<span class="hljs-keyword">struct</span> Page *)ROUNDUP((<span class="hljs-keyword">void</span> *)end, PGSIZE);
+
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">size_t</span> i = <span class="hljs-number">0</span>; i &lt; npage - nbase; i++) {
+        SetPageReserved(pages + i);
+    }
+
+    <span class="hljs-keyword">uintptr_t</span> freemem = PADDR((<span class="hljs-keyword">uintptr_t</span>)pages + <span class="hljs-keyword">sizeof</span>(<span class="hljs-keyword">struct</span> Page) * (npage - nbase));
+
+    mem_begin = ROUNDUP(freemem, PGSIZE);
+    mem_end = ROUNDDOWN(mem_end, PGSIZE);
+    <span class="hljs-keyword">if</span> (freemem &lt; mem_end) {
+        init_memmap(pa2page(mem_begin), (mem_end - mem_begin) / PGSIZE);
+    }
+}
+</code></pre>
+<p>Qemu &#x89C4;&#x5B9A;&#x7684; DRAM &#x7269;&#x7406;&#x5185;&#x5B58;&#x7684;&#x8D77;&#x59CB;&#x7269;&#x7406;&#x5730;&#x5740;&#x4E3A; <code>0x80000000</code> &#x3002;&#x800C;&#x5728; Qemu &#x4E2D;&#xFF0C;&#x53EF;&#x4EE5;&#x4F7F;&#x7528; <code>-m</code> &#x6307;&#x5B9A; RAM &#x7684;&#x5927;&#x5C0F;&#xFF0C;&#x9ED8;&#x8BA4;&#x662F; <code>128MiB</code> &#x3002;&#x56E0;&#x6B64;&#xFF0C;&#x9ED8;&#x8BA4;&#x7684; DRAM &#x7269;&#x7406;&#x5185;&#x5B58;&#x5730;&#x5740;&#x8303;&#x56F4;&#x5C31;&#x662F; <code>[0x80000000,0x88000000)</code> &#x3002;</p>
+<p>&#x4F46;&#x662F;&#xFF0C;&#x6709;&#x4E00;&#x90E8;&#x5206; DRAM &#x7A7A;&#x95F4;&#x5DF2;&#x7ECF;&#x88AB;&#x5360;&#x7528;&#xFF0C;&#x4E0D;&#x80FD;&#x7528;&#x6765;&#x5B58;&#x522B;&#x7684;&#x4E1C;&#x897F;&#x4E86;&#xFF01;</p>
+<ul>
+<li>&#x7269;&#x7406;&#x5730;&#x5740;&#x7A7A;&#x95F4; <code>[0x80000000,0x80200000)</code> &#x88AB; OpenSBI &#x5360;&#x7528;&#xFF1B;</li>
+<li>&#x7269;&#x7406;&#x5730;&#x5740;&#x7A7A;&#x95F4; <code>[0x80200000,KernelEnd)</code> &#x88AB;&#x5185;&#x6838;&#x5404;&#x4EE3;&#x7801;&#x4E0E;&#x6570;&#x636E;&#x6BB5;&#x5360;&#x7528;&#xFF1B;</li>
+<li>&#x5176;&#x5B9E;&#x8BBE;&#x5907;&#x6811;&#x626B;&#x63CF;&#x7ED3;&#x679C; DTB &#x8FD8;&#x5360;&#x7528;&#x4E86;&#x4E00;&#x90E8;&#x5206;&#x7269;&#x7406;&#x5185;&#x5B58;&#xFF0C;&#x4E0D;&#x8FC7;&#x6211;&#x4EEC;&#x76EE;&#x524D;&#x53EA;&#x5728;&#x521D;&#x59CB;&#x5316;&#x7684;&#x65F6;&#x8BFB;&#x53D6;&#x5176;&#x4E2D;&#x7684;&#x5185;&#x5B58;&#x8D77;&#x70B9;&#x548C;&#x957F;&#x5EA6;&#x4FE1;&#x606F;&#xFF0C;&#x6240;&#x4EE5;&#x4E4B;&#x540E;&#x53EF;&#x4EE5;&#x5C06;&#x5B83;&#x6240;&#x5360;&#x7528;&#x7684;&#x7A7A;&#x95F4;&#x7528;&#x6765;&#x5B58;&#x522B;&#x7684;&#x4E1C;&#x897F;&#x3002;</li>
+</ul>
+<p>&#x4E8E;&#x662F;&#xFF0C;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x7528;&#x6765;&#x5B58;&#x522B;&#x7684;&#x4E1C;&#x897F;&#x7684;&#x7269;&#x7406;&#x5185;&#x5B58;&#x7684;&#x7269;&#x7406;&#x5730;&#x5740;&#x8303;&#x56F4;&#x662F;&#xFF1A;<code>[KernelEnd, 0x88000000)</code> &#x3002;&#x8FD9;&#x91CC;&#x7684; <code>KernelEnd</code> &#x4E3A;&#x5185;&#x6838;&#x4EE3;&#x7801;&#x7ED3;&#x5C3E;&#x7684;&#x7269;&#x7406;&#x5730;&#x5740;&#x3002;&#x5728; <code>kernel.ld</code> &#x4E2D;&#x5B9A;&#x4E49;&#x7684; <code>end</code> &#x7B26;&#x53F7;&#x4E3A;&#x5185;&#x6838;&#x4EE3;&#x7801;&#x7ED3;&#x5C3E;&#x7684;&#x865A;&#x62DF;&#x5730;&#x5740;&#x3002;</p>
+<p>&#x4E3A;&#x4E86;&#x7BA1;&#x7406;&#x7269;&#x7406;&#x5185;&#x5B58;&#xFF0C;&#x6211;&#x4EEC;&#x9700;&#x8981;&#x5728;&#x5185;&#x6838;&#x91CC;&#x5B9A;&#x4E49;&#x4E00;&#x4E9B;&#x6570;&#x636E;&#x7ED3;&#x6784;&#xFF0C;&#x6765;&#x5B58;&#x50A8;&#x201D;&#x5F53;&#x524D;&#x4F7F;&#x7528;&#x4E86;&#x54EA;&#x4E9B;&#x7269;&#x7406;&#x9875;&#x9762;&#xFF0C;&#x54EA;&#x4E9B;&#x7269;&#x7406;&#x9875;&#x9762;&#x6CA1;&#x88AB;&#x4F7F;&#x7528;&#x201C;&#x8FD9;&#x6837;&#x7684;&#x4FE1;&#x606F;&#xFF0C;&#x4F7F;&#x7528;&#x7684;&#x662F;Page&#x7ED3;&#x6784;&#x4F53;&#x3002;&#x6211;&#x4EEC;&#x5C06;&#x4E00;&#x4E9B;Page&#x7ED3;&#x6784;&#x4F53;&#x5728;&#x5185;&#x5B58;&#x91CC;&#x6392;&#x5217;&#x5728;&#x5185;&#x6838;&#x540E;&#x9762;&#xFF0C;&#x8FD9;&#x8981;&#x5360;&#x7528;&#x4E00;&#x4E9B;&#x5185;&#x5B58;&#x3002;&#x800C;&#x6446;&#x653E;&#x8FD9;&#x4E9B;Page&#x7ED3;&#x6784;&#x4F53;&#x7684;&#x7269;&#x7406;&#x9875;&#x9762;&#xFF0C;&#x4EE5;&#x53CA;&#x5185;&#x6838;&#x5360;&#x7528;&#x7684;&#x7269;&#x7406;&#x9875;&#x9762;&#xFF0C;&#x4E4B;&#x540E;&#x90FD;&#x65E0;&#x6CD5;&#x518D;&#x4F7F;&#x7528;&#x4E86;&#x3002;&#x6211;&#x4EEC;&#x7528;<code>page_init()</code>&#x51FD;&#x6570;&#x7ED9;&#x8FD9;&#x4E9B;&#x7BA1;&#x7406;&#x7269;&#x7406;&#x5185;&#x5B58;&#x7684;&#x7ED3;&#x6784;&#x4F53;&#x505A;&#x521D;&#x59CB;&#x5316;&#x3002;&#x4E0B;&#x9762;&#x662F;&#x4EE3;&#x7801;&#xFF1A;</p>
+<pre><code class="lang-c"><span class="hljs-comment">// kern/mm/pmm.h</span>
+
+<span class="hljs-comment">/* *
+ * PADDR - takes a kernel virtual address (an address that points above
+ * KERNBASE),
+ * where the machine&apos;s maximum 256MB of physical memory is mapped and returns
+ * the
+ * corresponding physical address.  It panics if you pass it a non-kernel
+ * virtual address.
+ * */</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> PADDR(kva)                                                 \
+    ({                                                             \
+        uintptr_t __m_kva = (uintptr_t)(kva);                      \
+        <span class="hljs-meta-keyword">if</span> (__m_kva &lt; KERNBASE) {                                  \
+            panic(<span class="hljs-string">&quot;PADDR called with invalid kva %08lx&quot;</span>, __m_kva); \
+        }                                                          \
+        __m_kva - va_pa_offset;                                    \
+    })</span>
+
+<span class="hljs-comment">/* *
+ * KADDR - takes a physical address and returns the corresponding kernel virtual
+ * address. It panics if you pass an invalid physical address.
+ * */</span>
+<span class="hljs-comment">/*
+#define KADDR(pa)                                                \
+    ({                                                           \
+        uintptr_t __m_pa = (pa);                                 \
+        size_t __m_ppn = PPN(__m_pa);                            \
+        if (__m_ppn &gt;= npage) {                                  \
+            panic(&quot;KADDR called with invalid pa %08lx&quot;, __m_pa); \
+        }                                                        \
+        (void *)(__m_pa + va_pa_offset);                         \
+    })
+*/</span>
+<span class="hljs-keyword">extern</span> <span class="hljs-keyword">struct</span> Page *pages;
+<span class="hljs-keyword">extern</span> <span class="hljs-keyword">size_t</span> npage;
+</code></pre>
+<pre><code class="lang-c"><span class="hljs-comment">// kern/mm/pmm.c</span>
+
+<span class="hljs-comment">// pages&#x6307;&#x9488;&#x4FDD;&#x5B58;&#x7684;&#x662F;&#x7B2C;&#x4E00;&#x4E2A;Page&#x7ED3;&#x6784;&#x4F53;&#x6240;&#x5728;&#x7684;&#x4F4D;&#x7F6E;&#xFF0C;&#x4E5F;&#x53EF;&#x4EE5;&#x8BA4;&#x4E3A;&#x662F;Page&#x7ED3;&#x6784;&#x4F53;&#x7EC4;&#x6210;&#x7684;&#x6570;&#x7EC4;&#x7684;&#x5F00;&#x5934;</span>
+<span class="hljs-comment">// &#x7531;&#x4E8E;C&#x8BED;&#x8A00;&#x7684;&#x7279;&#x6027;&#xFF0C;&#x53EF;&#x4EE5;&#x628A;pages&#x4F5C;&#x4E3A;&#x6570;&#x7EC4;&#x540D;&#x4F7F;&#x7528;&#xFF0C;pages[i]&#x8868;&#x793A;&#x987A;&#x5E8F;&#x6392;&#x5217;&#x7684;&#x7B2C;i&#x4E2A;&#x7ED3;&#x6784;&#x4F53;</span>
+<span class="hljs-keyword">struct</span> Page *pages;
+<span class="hljs-keyword">size_t</span> npage = <span class="hljs-number">0</span>;
+<span class="hljs-keyword">uint64_t</span> va_pa_offset;
+<span class="hljs-comment">// memory starts at 0x80000000 in RISC-V</span>
+<span class="hljs-keyword">const</span> <span class="hljs-keyword">size_t</span> nbase = DRAM_BASE / PGSIZE;
+<span class="hljs-comment">//(npage - nbase)&#x8868;&#x793A;&#x7269;&#x7406;&#x5185;&#x5B58;&#x7684;&#x9875;&#x6570;</span>
+
+<span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title">page_init</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span> </span>{
+    va_pa_offset = PHYSICAL_MEMORY_OFFSET; <span class="hljs-comment">//&#x786C;&#x7F16;&#x7801; 0xFFFFFFFF40000000</span>
+
+    <span class="hljs-keyword">uint64_t</span> mem_begin = KERNEL_BEGIN_PADDR;<span class="hljs-comment">//&#x786C;&#x7F16;&#x7801; 0x80200000</span>
+    <span class="hljs-keyword">uint64_t</span> mem_size = PHYSICAL_MEMORY_END - KERNEL_BEGIN_PADDR;
+    <span class="hljs-keyword">uint64_t</span> mem_end = PHYSICAL_MEMORY_END; <span class="hljs-comment">//&#x786C;&#x7F16;&#x7801; 0x88000000</span>
+
+    cprintf(<span class="hljs-string">&quot;physcial memory map:\n&quot;</span>);
+    cprintf(<span class="hljs-string">&quot;  memory: 0x%016lx, [0x%016lx, 0x%016lx].\n&quot;</span>, mem_size, mem_begin,
+            mem_end - <span class="hljs-number">1</span>);
+
+    <span class="hljs-keyword">uint64_t</span> maxpa = mem_end;
+
+    <span class="hljs-keyword">if</span> (maxpa &gt; KERNTOP) {
+        maxpa = KERNTOP;
+    }
+
+    npage = maxpa / PGSIZE;
+
+    <span class="hljs-keyword">extern</span> <span class="hljs-keyword">char</span> end[];
+    pages = (<span class="hljs-keyword">struct</span> Page *)ROUNDUP((<span class="hljs-keyword">void</span> *)end, PGSIZE);
+    <span class="hljs-comment">//&#x628A;pages&#x6307;&#x9488;&#x6307;&#x5411;&#x5185;&#x6838;&#x6240;&#x5360;&#x5185;&#x5B58;&#x7A7A;&#x95F4;&#x7ED3;&#x675F;&#x540E;&#x7684;&#x7B2C;&#x4E00;&#x9875;</span>
+
+    <span class="hljs-comment">//&#x4E00;&#x5F00;&#x59CB;&#x628A;&#x6240;&#x6709;&#x9875;&#x9762;&#x90FD;&#x8BBE;&#x7F6E;&#x4E3A;&#x4FDD;&#x7559;&#x7ED9;&#x5185;&#x6838;&#x4F7F;&#x7528;&#x7684;&#xFF0C;&#x4E4B;&#x540E;&#x518D;&#x8BBE;&#x7F6E;&#x54EA;&#x4E9B;&#x9875;&#x9762;&#x53EF;&#x4EE5;&#x5206;&#x914D;&#x7ED9;&#x5176;&#x4ED6;&#x7A0B;&#x5E8F;</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">size_t</span> i = <span class="hljs-number">0</span>; i &lt; npage - nbase; i++) {
+        SetPageReserved(pages + i);<span class="hljs-comment">//&#x8BB0;&#x5F97;&#x5417;&#xFF1F;&#x5728;kern/mm/memlayout.h&#x5B9A;&#x4E49;&#x7684;</span>
+    }
+    <span class="hljs-comment">//&#x4ECE;&#x8FD9;&#x4E2A;&#x5730;&#x65B9;&#x5F00;&#x59CB;&#x624D;&#x662F;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x81EA;&#x7531;&#x4F7F;&#x7528;&#x7684;&#x7269;&#x7406;&#x5185;&#x5B58;</span>
+    <span class="hljs-keyword">uintptr_t</span> freemem = PADDR((<span class="hljs-keyword">uintptr_t</span>)pages + <span class="hljs-keyword">sizeof</span>(<span class="hljs-keyword">struct</span> Page) * (npage - nbase));
+    <span class="hljs-comment">//&#x6309;&#x7167;&#x9875;&#x9762;&#x5927;&#x5C0F;PGSIZE&#x8FDB;&#x884C;&#x5BF9;&#x9F50;, ROUNDUP, ROUNDDOWN&#x662F;&#x5728;libs/defs.h&#x5B9A;&#x4E49;&#x7684;</span>
+    mem_begin = ROUNDUP(freemem, PGSIZE);
+    mem_end = ROUNDDOWN(mem_end, PGSIZE);
+    <span class="hljs-keyword">if</span> (freemem &lt; mem_end) {
+        <span class="hljs-comment">//&#x521D;&#x59CB;&#x5316;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x81EA;&#x7531;&#x4F7F;&#x7528;&#x7684;&#x7269;&#x7406;&#x5185;&#x5B58;</span>
+        init_memmap(pa2page(mem_begin), (mem_end - mem_begin) / PGSIZE);
+    }
+}
+</code></pre>
+<p>&#x5728;<code>page_init()</code>&#x7684;&#x4EE3;&#x7801;&#x91CC;&#xFF0C;&#x6211;&#x4EEC;&#x8C03;&#x7528;&#x4E86;&#x4E00;&#x4E2A;&#x51FD;&#x6570;<code>init_memmap()</code>, &#x8FD9;&#x548C;&#x6211;&#x4EEC;&#x7684;&#x53E6;&#x4E00;&#x4E2A;&#x7ED3;&#x6784;&#x4F53;<code>pmm_manager</code>&#x6709;&#x5173;&#x3002;&#x867D;&#x7136;C&#x8BED;&#x8A00;&#x57FA;&#x672C;&#x4E0A;&#x4E0D;&#x652F;&#x6301;&#x9762;&#x5411;&#x5BF9;&#x8C61;&#xFF0C;&#x4F46;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x7528;&#x7C7B;&#x4F3C;&#x9762;&#x5411;&#x5BF9;&#x8C61;&#x7684;&#x601D;&#x8DEF;&#xFF0C;&#x628A;&#x201D;&#x7269;&#x7406;&#x5185;&#x5B58;&#x7BA1;&#x7406;&#x201C;&#x7684;&#x529F;&#x80FD;&#x96C6;&#x4E2D;&#x7ED9;&#x4E00;&#x4E2A;&#x7ED3;&#x6784;&#x4F53;&#x3002;&#x6211;&#x4EEC;&#x751A;&#x81F3;&#x53EF;&#x4EE5;&#x8BA9;&#x51FD;&#x6570;&#x6307;&#x9488;&#x4F5C;&#x4E3A;&#x7ED3;&#x6784;&#x4F53;&#x7684;&#x6210;&#x5458;&#xFF0C;&#x5F3A;&#x884C;&#x5728;C&#x8BED;&#x8A00;&#x91CC;&#x652F;&#x6301;&#x4E86;&#x201D;&#x6210;&#x5458;&#x51FD;&#x6570;&#x201C;&#x3002;&#x53EF;&#x4EE5;&#x770B;&#x5230;&#xFF0C;&#x6211;&#x4EEC;&#x8C03;&#x7528;&#x7684;<code>init_memmap()</code>&#x5B9E;&#x9645;&#x4E0A;&#x53C8;&#x8C03;&#x7528;&#x4E86;<code>pmm_manager</code>&#x7684;&#x4E00;&#x4E2A;&#x201D;&#x6210;&#x5458;&#x51FD;&#x6570;&#x201C;&#x3002;</p>
+<pre><code class="lang-c"><span class="hljs-comment">// kern/mm/pmm.c</span>
+
+<span class="hljs-comment">// physical memory management</span>
+<span class="hljs-keyword">const</span> <span class="hljs-keyword">struct</span> pmm_manager *pmm_manager;
+
+
+<span class="hljs-comment">// init_memmap - call pmm-&gt;init_memmap to build Page struct for free memory</span>
+<span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title">init_memmap</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> Page *base, size_t n)</span> </span>{
+    pmm_manager-&gt;init_memmap(base, n);
+}
+</code></pre>
+<pre><code class="lang-c"><span class="hljs-comment">// kern/mm/pmm.h</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">ifndef</span> __KERN_MM_PMM_H__</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> __KERN_MM_PMM_H__</span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;assert.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;atomic.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;defs.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;memlayout.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;mmu.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;riscv.h&gt;</span></span>
+
+<span class="hljs-comment">// pmm_manager is a physical memory management class. A special pmm manager -</span>
+<span class="hljs-comment">// XXX_pmm_manager</span>
+<span class="hljs-comment">// only needs to implement the methods in pmm_manager class, then</span>
+<span class="hljs-comment">// XXX_pmm_manager can be used</span>
+<span class="hljs-comment">// by ucore to manage the total physical memory space.</span>
+<span class="hljs-keyword">struct</span> pmm_manager {
+    <span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span> *name;  <span class="hljs-comment">// XXX_pmm_manager&apos;s name</span>
+    <span class="hljs-keyword">void</span> (*init)(
+        <span class="hljs-keyword">void</span>);  <span class="hljs-comment">// &#x521D;&#x59CB;&#x5316;XXX_pmm_manager&#x5185;&#x90E8;&#x7684;&#x6570;&#x636E;&#x7ED3;&#x6784;&#xFF08;&#x5982;&#x7A7A;&#x95F2;&#x9875;&#x9762;&#x7684;&#x94FE;&#x8868;&#xFF09;</span>
+    <span class="hljs-keyword">void</span> (*init_memmap)(
+        <span class="hljs-keyword">struct</span> Page *base,
+        <span class="hljs-keyword">size_t</span> n);  <span class="hljs-comment">//&#x77E5;&#x9053;&#x4E86;&#x53EF;&#x7528;&#x7684;&#x7269;&#x7406;&#x9875;&#x9762;&#x6570;&#x76EE;&#x4E4B;&#x540E;&#xFF0C;&#x8FDB;&#x884C;&#x66F4;&#x8BE6;&#x7EC6;&#x7684;&#x521D;&#x59CB;&#x5316;</span>
+    <span class="hljs-keyword">struct</span> Page *(*alloc_pages)(
+        <span class="hljs-keyword">size_t</span> n);  <span class="hljs-comment">// &#x5206;&#x914D;&#x81F3;&#x5C11;n&#x4E2A;&#x7269;&#x7406;&#x9875;&#x9762;, &#x6839;&#x636E;&#x5206;&#x914D;&#x7B97;&#x6CD5;&#x53EF;&#x80FD;&#x8FD4;&#x56DE;&#x4E0D;&#x540C;&#x7684;&#x7ED3;&#x679C;</span>
+    <span class="hljs-keyword">void</span> (*free_pages)(<span class="hljs-keyword">struct</span> Page *base, <span class="hljs-keyword">size_t</span> n);  <span class="hljs-comment">// free &gt;=n pages with</span>
+                                                      <span class="hljs-comment">// &quot;base&quot; addr of Page</span>
+                                                      <span class="hljs-comment">// descriptor</span>
+                                                      <span class="hljs-comment">// structures(memlayout.h)</span>
+    <span class="hljs-keyword">size_t</span> (*nr_free_pages)(<span class="hljs-keyword">void</span>);  <span class="hljs-comment">// &#x8FD4;&#x56DE;&#x7A7A;&#x95F2;&#x7269;&#x7406;&#x9875;&#x9762;&#x7684;&#x6570;&#x76EE;</span>
+    <span class="hljs-keyword">void</span> (*check)(<span class="hljs-keyword">void</span>);            <span class="hljs-comment">// &#x6D4B;&#x8BD5;&#x6B63;&#x786E;&#x6027;</span>
+};
+
+<span class="hljs-keyword">extern</span> <span class="hljs-keyword">const</span> <span class="hljs-keyword">struct</span> pmm_manager *pmm_manager;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">pmm_init</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+
+<span class="hljs-function"><span class="hljs-keyword">struct</span> Page *<span class="hljs-title">alloc_pages</span><span class="hljs-params">(size_t n)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">free_pages</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> Page *base, size_t n)</span></span>;
+<span class="hljs-keyword">size_t</span> nr_free_pages(<span class="hljs-keyword">void</span>); <span class="hljs-comment">// number of free pages</span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> alloc_page() alloc_pages(1)</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> free_page(page) free_pages(page, 1)</span>
+</code></pre>
+<p>pmm_manager&#x63D0;&#x4F9B;&#x4E86;&#x5404;&#x79CD;&#x63A5;&#x53E3;&#xFF1A;&#x5206;&#x914D;&#x9875;&#x9762;&#xFF0C;&#x91CA;&#x653E;&#x9875;&#x9762;&#xFF0C;&#x67E5;&#x770B;&#x5F53;&#x524D;&#x7A7A;&#x95F2;&#x9875;&#x9762;&#x6570;&#x3002;&#x4F46;&#x662F;&#x6211;&#x4EEC;&#x597D;&#x50CF;&#x59CB;&#x7EC8;&#x6CA1;&#x770B;&#x89C1;pmm_manager&#x5185;&#x90E8;&#x5BF9;&#x8FD9;&#x4E9B;&#x63A5;&#x53E3;&#x7684;&#x5B9E;&#x73B0;&#xFF0C;&#x5176;&#x5B9E;&#x662F;&#x56E0;&#x4E3A;&#x90A3;&#x4E9B;&#x63A5;&#x53E3;&#x53EA;&#x662F;&#x4F5C;&#x4E3A;&#x51FD;&#x6570;&#x6307;&#x9488;&#xFF0C;&#x4F5C;&#x4E3A;pmm_manager&#x7684;&#x4E00;&#x90E8;&#x5206;&#xFF0C;&#x6211;&#x4EEC;&#x9700;&#x8981;&#x628A;&#x90A3;&#x4E9B;&#x51FD;&#x6570;&#x6307;&#x9488;&#x53D8;&#x91CF;&#x8D4B;&#x503C;&#x4E3A;&#x771F;&#x6B63;&#x7684;&#x51FD;&#x6570;&#x540D;&#x79F0;&#x3002;</p>
+<p>&#x8FD8;&#x8BB0;&#x5F97;&#x6700;&#x65E9;&#x6211;&#x4EEC;&#x5728;<code>pmm_init()</code>&#x91CC;&#x9996;&#x5148;&#x8C03;&#x7528;&#x4E86;<code>init_pmm_manager()</code>, &#x5728;&#x8FD9;&#x91CC;&#x9762;&#x6211;&#x4EEC;&#x628A;pmm_manager&#x7684;&#x6307;&#x9488;&#x8D4B;&#x503C;&#x6210;<code>&amp;default_pmm_manager</code>&#xFF0C; &#x770B;&#x8D77;&#x6765;&#x6211;&#x4EEC;&#x5728;&#x8FD9;&#x91CC;&#x5B9E;&#x73B0;&#x4E86;&#x90A3;&#x4E9B;&#x63A5;&#x53E3;&#x3002;</p>
+<pre><code class="lang-c"><span class="hljs-comment">// init_pmm_manager - initialize a pmm_manager instance</span>
+<span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title">init_pmm_manager</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span> </span>{
+    pmm_manager = &amp;default_pmm_manager;
+    cprintf(<span class="hljs-string">&quot;memory management: %s\n&quot;</span>, pmm_manager-&gt;name);
+    pmm_manager-&gt;init();
+}
+<span class="hljs-comment">// alloc_pages - call pmm-&gt;alloc_pages to allocate a continuous n*PAGESIZE</span>
+<span class="hljs-comment">// memory</span>
+<span class="hljs-function"><span class="hljs-keyword">struct</span> Page *<span class="hljs-title">alloc_pages</span><span class="hljs-params">(size_t n)</span> </span>{
+    <span class="hljs-comment">// &#x5728;&#x8FD9;&#x91CC;&#x7F16;&#x5199;&#x4F60;&#x7684;&#x7269;&#x7406;&#x5185;&#x5B58;&#x5206;&#x914D;&#x7B97;&#x6CD5;&#x3002;</span>
+    <span class="hljs-comment">// &#x4F60;&#x53EF;&#x4EE5;&#x53C2;&#x8003;nr_free_pages() &#x51FD;&#x6570;&#x8FDB;&#x884C;&#x8BBE;&#x8BA1;&#xFF0C;</span>
+    <span class="hljs-comment">// &#x4E86;&#x89E3;&#x7269;&#x7406;&#x5185;&#x5B58;&#x7BA1;&#x7406;&#x5668;&#x7684;&#x5DE5;&#x4F5C;&#x539F;&#x7406;&#xFF0C;&#x7136;&#x540E;&#x5728;&#x8FD9;&#x91CC;&#x5B9E;&#x73B0;&#x81EA;&#x5DF1;&#x7684;&#x5206;&#x914D;&#x7B97;&#x6CD5;&#x3002;</span>
+    <span class="hljs-comment">// &#x5B9E;&#x73B0;&#x7B97;&#x6CD5;&#x540E;&#xFF0C;&#x8C03;&#x7528; pmm_manager-&gt;alloc_pages(n) &#x6765;&#x5206;&#x914D;&#x7269;&#x7406;&#x5185;&#x5B58;&#xFF0C;</span>
+    <span class="hljs-comment">// &#x7136;&#x540E;&#x8FD4;&#x56DE;&#x5206;&#x914D;&#x7684; Page &#x7ED3;&#x6784;&#x6307;&#x9488;&#x3002;</span>
+}
+
+<span class="hljs-comment">// free_pages - call pmm-&gt;free_pages to free a continuous n*PAGESIZE memory</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">free_pages</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> Page *base, size_t n)</span> </span>{
+    <span class="hljs-comment">// &#x5728;&#x8FD9;&#x91CC;&#x7F16;&#x5199;&#x4F60;&#x7684;&#x7269;&#x7406;&#x5185;&#x5B58;&#x91CA;&#x653E;&#x7B97;&#x6CD5;&#x3002;</span>
+    <span class="hljs-comment">// &#x4F60;&#x53EF;&#x4EE5;&#x53C2;&#x8003;nr_free_pages() &#x51FD;&#x6570;&#x8FDB;&#x884C;&#x8BBE;&#x8BA1;&#xFF0C;</span>
+    <span class="hljs-comment">// &#x4E86;&#x89E3;&#x7269;&#x7406;&#x5185;&#x5B58;&#x7BA1;&#x7406;&#x5668;&#x7684;&#x5DE5;&#x4F5C;&#x539F;&#x7406;&#xFF0C;&#x7136;&#x540E;&#x5728;&#x8FD9;&#x91CC;&#x5B9E;&#x73B0;&#x81EA;&#x5DF1;&#x7684;&#x91CA;&#x653E;&#x7B97;&#x6CD5;&#x3002;</span>
+    <span class="hljs-comment">// &#x5B9E;&#x73B0;&#x7B97;&#x6CD5;&#x540E;&#xFF0C;&#x8C03;&#x7528; pmm_manager-&gt;free_pages(base, n) &#x6765;&#x91CA;&#x653E;&#x7269;&#x7406;&#x5185;&#x5B58;&#x3002;</span>
+}
+
+<span class="hljs-comment">// nr_free_pages - call pmm-&gt;nr_free_pages to get the size (nr*PAGESIZE)</span>
+<span class="hljs-comment">// of current free memory</span>
+<span class="hljs-keyword">size_t</span> nr_free_pages(<span class="hljs-keyword">void</span>) {
+    <span class="hljs-keyword">return</span> pmm_manager-&gt;nr_free_pages();
+}
+</code></pre>
+<p>&#x5230;&#x73B0;&#x5728;&#xFF0C;&#x6211;&#x4EEC;&#x8DDD;&#x79BB;&#x5B8C;&#x6574;&#x7684;&#x5185;&#x5B58;&#x7BA1;&#x7406;&#xFF0C; &#x5C31;&#x53EA;&#x5DEE;<code>default_pmm_manager</code>&#x7ED3;&#x6784;&#x4F53;&#x7684;&#x5B9E;&#x73B0;&#x4E86;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x6211;&#x4EEC;&#x8981;&#x5728;&#x91CC;&#x9762;&#x5B9E;&#x73B0;&#x9875;&#x9762;&#x5206;&#x914D;&#x7B97;&#x6CD5;&#x3002;</p>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class='search-results-count'></span> results matching "<span class='search-query'></span>"</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching "<span class='search-query'></span>"</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="lab2_3_6_1_pmm_init.html" class="navigation navigation-prev " aria-label="Previous page: 物理内存管理的实现">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+                <a href="lab2_3_6_3_phymem_allocation.html" class="navigation navigation-next " aria-label="Next page: 页面分配算法">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"物理内存探测","level":"1.4.3.6.2","depth":4,"next":{"title":"页面分配算法","level":"1.4.3.6.3","depth":4,"path":"lab2/lab2_3_6_3_phymem_allocation.md","ref":"lab2/lab2_3_6_3_phymem_allocation.md","articles":[]},"previous":{"title":"物理内存管理的实现","level":"1.4.3.6.1","depth":4,"path":"lab2/lab2_3_6_1_pmm_init.md","ref":"lab2/lab2_3_6_1_pmm_init.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":[],"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"lab2/lab2_3_6_2_search_phymem_layout.md","mtime":"2025-09-28T08:17:37.137Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2025-09-28T09:58:31.783Z"},"basePath":"..","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    <script src="../gitbook/gitbook.js"></script>
+    <script src="../gitbook/theme.js"></script>
+    
+        
+        <script src="../gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-sharing/buttons.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    </body>
+</html>
+
