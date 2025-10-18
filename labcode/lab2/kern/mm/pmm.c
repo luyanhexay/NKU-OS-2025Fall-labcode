@@ -99,6 +99,7 @@ static void page_init(void) {
     if (freemem < mem_end) {
         init_memmap(pa2page(mem_begin), (mem_end - mem_begin) / PGSIZE);
     }
+    // cprintf("kernel virtual memory map:\n");
 }
 
 /* pmm_init - initialize the physical memory management */
