@@ -146,6 +146,7 @@ $(call finish_all)
 IGNORE_ALLDEPS	= clean \
 				  dist-clean \
 				  grade \
+				  grade_buddy \
 				  touch \
 				  print-.+ \
 				  handin
@@ -190,7 +191,7 @@ test: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 spike: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 	$(V)$(SPIKE) $(UCOREIMG)
 
-.PHONY: grade touch
+.PHONY:  grade grade_buddy touch
 
 GRADE_GDB_IN	:= .gdb.in
 GRADE_QEMU_OUT	:= .qemu.out
@@ -203,6 +204,10 @@ MAKEOPTS		:= --quiet --no-print-directory
 grade:
 	$(V)$(MAKE) $(MAKEOPTS) clean
 	$(V)$(SH) tools/grade.sh
+
+grade_buddy:
+	$(V)$(MAKE) $(MAKEOPTS) clean
+	$(V)$(SH) tools/grade_buddy.sh
 
 touch:
 	$(V)$(foreach f,$(TOUCH_FILES),$(TOUCH) $(f))
