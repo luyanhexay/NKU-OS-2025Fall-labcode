@@ -12,31 +12,31 @@ kern_entry:
     la t0, boot_dtb
     sd a1, 0(t0)
 
-    # t0 := 三级页表的虚拟地址
+    # t0 := 涓夌骇椤佃〃鐨勮櫄鎷熷湴鍧€
     lui     t0, %hi(boot_page_table_sv39)
-    # t1 := 0xffffffff40000000 即虚实映射偏移量
+    # t1 := 0xffffffff40000000 鍗宠櫄瀹炴槧灏勫亸绉婚噺
     li      t1, 0xffffffffc0000000 - 0x80000000
-    # t0 减去虚实映射偏移量 0xffffffff40000000，变为三级页表的物理地址
+    # t0 鍑忓幓铏氬疄鏄犲皠鍋忕Щ閲� 0xffffffff40000000锛屽彉涓轰笁绾ч〉琛ㄧ殑鐗╃悊鍦板潃
     sub     t0, t0, t1
-    # t0 >>= 12，变为三级页表的物理页号
+    # t0 >>= 12锛屽彉涓轰笁绾ч〉琛ㄧ殑鐗╃悊椤靛彿
     srli    t0, t0, 12
 
-    # t1 := 8 << 60，设置 satp 的 MODE 字段为 Sv39
+    # t1 := 8 << 60锛岃缃� satp 鐨� MODE 瀛楁涓� Sv39
     li      t1, 8 << 60
-    # 将刚才计算出的预设三级页表物理页号附加到 satp 中
+    # 灏嗗垰鎵嶈绠楀嚭鐨勯璁句笁绾ч〉琛ㄧ墿鐞嗛〉鍙烽檮鍔犲埌 satp 涓�
     or      t0, t0, t1
-    # 将算出的 t0(即新的MODE|页表基址物理页号) 覆盖到 satp 中
+    # 灏嗙畻鍑虹殑 t0(鍗虫柊鐨凪ODE|椤佃〃鍩哄潃鐗╃悊椤靛彿) 瑕嗙洊鍒� satp 涓�
     csrw    satp, t0
-    # 使用 sfence.vma 指令刷新 TLB
+    # 浣跨敤 sfence.vma 鎸囦护鍒锋柊 TLB
     sfence.vma
-    # 从此，我们给内核搭建出了一个完美的虚拟内存空间！
-    #nop # 可能映射的位置有些bug。。插入一个nop
+    # 浠庢锛屾垜浠粰鍐呮牳鎼缓鍑轰簡涓€涓畬缇庣殑铏氭嫙鍐呭瓨绌洪棿锛�
+    #nop # 鍙兘鏄犲皠鐨勪綅缃湁浜沚ug銆傘€傛彃鍏ヤ竴涓猲op
     
-    # 我们在虚拟内存空间中：随意将 sp 设置为虚拟地址！
+    # 鎴戜滑鍦ㄨ櫄鎷熷唴瀛樼┖闂翠腑锛氶殢鎰忓皢 sp 璁剧疆涓鸿櫄鎷熷湴鍧€锛�
     lui sp, %hi(bootstacktop)
 
-    # 我们在虚拟内存空间中：随意跳转到虚拟地址！
-    # 跳转到 kern_init
+    # 鎴戜滑鍦ㄨ櫄鎷熷唴瀛樼┖闂翠腑锛氶殢鎰忚烦杞埌铏氭嫙鍦板潃锛�
+    # 璺宠浆鍒� kern_init
     lui t0, %hi(kern_init)
     addi t0, t0, %lo(kern_init)
     jr t0
@@ -51,15 +51,15 @@ bootstack:
 bootstacktop:
 
 .section .data
-    # 由于我们要把这个页表放到一个页里面，因此必须 12 位对齐
+    # 鐢变簬鎴戜滑瑕佹妸杩欎釜椤佃〃鏀惧埌涓€涓〉閲岄潰锛屽洜姝ゅ繀椤� 12 浣嶅榻�
     .align PGSHIFT
     .global boot_page_table_sv39
-# 分配 4KiB 内存给预设的三级页表
+# 鍒嗛厤 4KiB 鍐呭瓨缁欓璁剧殑涓夌骇椤佃〃
 boot_page_table_sv39:
     # 0xffffffff_c0000000 map to 0x80000000 (1G)
-    # 前 511 个页表项均设置为 0 ，因此 V=0 ，意味着是空的(unmapped)
+    # 鍓� 511 涓〉琛ㄩ」鍧囪缃负 0 锛屽洜姝� V=0 锛屾剰鍛崇潃鏄┖鐨�(unmapped)
     .zero 8 * 511
-    # 设置最后一个页表项，PPN=0x80000，标志位 VRWXAD 均为 1
+    # 璁剧疆鏈€鍚庝竴涓〉琛ㄩ」锛孭PN=0x80000锛屾爣蹇椾綅 VRWXAD 鍧囦负 1
     .quad (0x80000 << 10) | 0xcf # VRWXAD
 
     .global boot_hartid
