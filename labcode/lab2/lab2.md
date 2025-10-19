@@ -8,11 +8,16 @@
 <p align="center">
   <a href="##练习1：理解first-fit 连续物理内存分配算法（思考题）">练习1</a>|
   <a href="##练习2：实现 Best-Fit 连续物理内存分配算法（需要编程）">练习2</a>|
-  <a href="##扩展练习Challenge：buddy system（伙伴系统）分配算法（需要编程）">buddy system</a>|
-  <a href="##扩展练习Challenge：任意大小的内存单元slub分配算法（需要编程）">slub分配算法</a>|
-  <a href="##扩展练习Challenge：硬件的可用物理内存范围的获取方法（思考题）">可用物理内存范围的获取方法</a>|
+  <a href="## Challenge1：buddy system">challenge 1</a>|
+  <a href="## Challenge2：slub">challenge 2</a>|
+  <a href="## Challenge3：硬件的可用物理内存范围的获取方法（思考题）">challenge 3</a>|
   <a href="##分工">分工</a>
 </p>
+
+
+
+
+
 
 ## 练习1：理解first-fit 连续物理内存分配算法（思考题）
 
@@ -72,11 +77,92 @@
 
 当前的合并操作仅在释放时检查直接相邻的块。可以增强这一机制。在系统负载较低时，或当碎片数量达到一定阈值后，触发一次全局的内存紧缩，将所有的空闲块合并成一个大块。
 
-## 扩展练习Challenge：buddy system（伙伴系统）分配算法（需要编程）
+## Challenge1：buddy system
+### 方法简述
+- 只能分配2的幂次方的页，即页大小为2^n，n为0,1,2,3...
+- 维护一个二叉树，保存左右儿子的最大可分配连续页数
+- 分配过程：
+  - 将所需页面大小扩大到2的幂次方
+  - 优先分配右儿子
+  - 如果右儿子没有足够大的连续页，则再分配左儿子；
+  - 若左儿子也没有足够大的连续页，则分配自身（要求自身空闲）
+  - 若自身也没有足够大的连续页，则分配失败
+  - 将分配页左右儿子的最大可分配连续页数更新为0
+  - 逐级向父亲节点更新左右儿子的最大可分配连续页数
+- 释放过程：
+  - 将大小扩大到2的幂次方
+  - 找到页对应的二叉树节点，将其左右儿子的最大可分配连续页数更新为满
+  - 逐级向父亲节点更新左右儿子的最大可分配连续页数
+    - 若父亲节点的左右儿子的最大可分配连续页数都为满，则将父亲节点的最大可分配连续页数设为满向上传递
+    - 否则取左右儿子最大值
+### 实现细节
+#### 二叉树节点设计
+一个二叉树节点需要有以下属性，且节点数为2*n+1：
+- 左儿子的索引
+- 右儿子的索引
+- 父亲的索引
+- 左儿子的最大可分配连续页数（left_max）
+- 右儿子的最大可分配连续页数（right_max）
 
-## 扩展练习Challenge：任意大小的内存单元slub分配算法（需要编程）
+但是这些属性太多了，对空间的要求太大，要考虑**进行压缩**。
 
-## 扩展练习Challenge：硬件的可用物理内存范围的获取方法（思考题）
+如果节点之间连续，或者说以某种逻辑顺序排列，那么就可以不需要父亲索引、左儿子索引、右儿子索引。如果地址连续，假设当且节点为x，则父亲节点为x/2，左儿子为2x，右儿子为2x+1。
+
+接下来就是左右儿子的最大可分配连续页数，可以每个节点仅维护自己的最大可分配连续页数，访问左右儿子最大可分配连续页数直接查找左右儿子即可，**但这样访存次数太多**，而且我之前没想到，所以还是同时维护了`left_max`和`right_max`。
+
+#### 节点内存分配
+- 由于节点的数量约为总页数的两倍，因此需要在一个虚拟页`Page`中**分配两个节点的空间**。而为了让我们实现的页`Page_bt`与`Page`能对齐，分配给节点的空间最大为`size_of(page_link_t)`，即64字节。而如果给一个节点分配两个int大小的空间，总共占用了128字节，**超出限制**。
+- 考虑进行优化：最大可分配连续页数必为2的整数幂，因此可以用`log2(n)`表示，因此仅需要一个`unsigned char`大小的空间来保存最大可分配连续页数，两个节点仅需要32字节的空间，剩余空间用char数组填充以保证对齐。
+#### 关键函数代码
+``` c++
+struct binary_tree_node{//二叉树节点
+    unsigned char left_max;
+    unsigned char right_max;
+};
+
+struct Page_bt {//页
+    int ref;                        
+    uint64_t flags;                 
+    unsigned int property;          
+    binary_tree_node_t node[2];
+    char vacancy[sizeof(list_entry_t) - 2 * sizeof(binary_tree_node_t)];  //填空对齐
+};
+
+#define LEFT_LEAF(index) ((index<<1)|1) //左儿子索引
+#define RIGHT_LEAF(index) ((index+1)<<1) // 右儿子索引
+#define PARENT(index) (((index+1)>>1)-1)// 父亲索引
+
+int get_index(int offset, int property, int tot_size);//根据页偏移量获取二叉树节点索引
+get_node(index);//根据二叉树节点索引获取节点指针
+```
+
+### 测试
+`make grade_buddy`
+- 测试一：
+  - 先分配total_size/2+1大小的页：分配成功
+  - 再分配1大小的页：分配失败
+  - 清空
+- 测试二：
+  - 先分配大小为1的页：分配成功
+  - 再分配大小为2的页：分配成功
+  - ······
+  - 再后分配到大小为total_size/2大小的页：分配成功
+  - 再分配大小为1的页：分配成功
+  - 再分配大小为1的页：分配失败
+  - 清空
+- 测试三：
+  - 先分配大小为total_size/2大小的页：分配成功
+  - 再分配大小为total_size/4大小的页: 分配成功
+  -  ······
+  - 再分配大小为1的页：分配成功
+  - 再分配大小为1的页：分配失败
+  - 清空
+- 测试四：
+  - 分配total_size+1大小的页：分配失败
+  - 清空
+## Challenge2：slub
+
+## Challenge3：硬件的可用物理内存范围的获取方法（思考题）
 
 ### 问题分析
 
@@ -142,6 +228,6 @@ qemu: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 
 ## 分工
 
-- [章壹程](https://github.com/u2003yuge)：环境配置、Readme.md 排版、git 管理
-- [仇科文](https://github.com/luyanhexay)：完成扩展练习三
-- [杨宇翔](https://github.com/sheepspacefly)：完成问题二
+- [章壹程](https://github.com/u2003yuge)：challenge2
+- [仇科文](https://github.com/luyanhexay)：challenge3
+- [杨宇翔](https://github.com/sheepspacefly)：练习一、练习二
