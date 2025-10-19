@@ -228,6 +228,6 @@ qemu: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 
 ## 分工
 
-- [章壹程](https://github.com/u2003yuge)：challenge2
+- [章壹程](https://github.com/u2003yuge)：challenge1
 - [仇科文](https://github.com/luyanhexay)：challenge3
 - [杨宇翔](https://github.com/sheepspacefly)：练习一、练习二
