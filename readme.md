@@ -5,7 +5,8 @@
 </p>
 <h5 align="center"><em>章壹程，仇科文，杨宇翔 </em></h5>
 <p align="center">
-  <a href="https://github.com/luyanhexay/NKU-OS-2025Fall-labcode/labcode/lab1">lab1</a>
+  <a href="https://github.com/luyanhexay/NKU-OS-2025Fall-labcode/labcode/lab1">lab1</a> |
+  <a href="https://github.com/luyanhexay/NKU-OS-2025Fall-labcode/labcode/lab2">lab2</a>
 </p>
 
 ## 实验指导手册
