@@ -72,7 +72,7 @@ struct Page_bt {
     unsigned int property;          // the num of free block, used in first fit pm manager
     // unsigned char property;
     binary_tree_node_t node[2];
-    char  vacancy[sizeof(list_entry_t) - 2 * sizeof(binary_tree_node_t)];  //填空对齐，比较安全
+    char vacancy[sizeof(list_entry_t) - 2 * sizeof(binary_tree_node_t)];  //填空对齐，比较安全
 };
 
 typedef struct {
@@ -86,11 +86,10 @@ static free_area_bt_t free_area;
 // convert list entry to page_bt
 // #define le2pagebt(bte, member)                 
 //     to_struct((bte), struct Page_bt, member)
-#define get_node(index)                     \
-    (binary_tree_root[index / 2].node + (index & 1))
+#define get_node(index) (&binary_tree_root[index / 2].node[index & 1])
 #define LEFT_LEAF(index) ((index<<1)|1)
 #define RIGHT_LEAF(index) ((index+1)<<1)
-#define PARENT(index) ((index-1)>>1)
+#define PARENT(index) (((index+1)>>1)-1)
 #define IS_POWER_OF_2(x) (!((x)&((x)-1)))
 #define max(a,b) a>b?a:b
 // static
@@ -101,7 +100,7 @@ static free_area_bt_t free_area;
 static
 int get_index(int offset, int property, int tot_size){
     int index = 0;
-    while(total_size > property){
+    while(tot_size > property){
         int half = tot_size >> 1;
         if (offset < half) {
             index = LEFT_LEAF(index);
@@ -146,9 +145,10 @@ buddy_init_memmap(struct Page *base, size_t n) {
     /*保证n是2的幂次方*/
     if (!IS_POWER_OF_2(n))
         n = fixsize(n)>>1;
+    binary_tree_root = (struct Page_bt *)base;
     total_size = n;
-    struct Page_bt *base_bt = (struct Page_bt *)base;
-
+    // cprintf("buddy_init_memmap: total_size = %d\n", total_size);
+    
     struct Page *p = base;
     for (; p != base + n; p ++) {
         assert(PageReserved(p));
@@ -160,14 +160,14 @@ buddy_init_memmap(struct Page *base, size_t n) {
         // 清空当前页框的标志和属性信息，并将页框的引用计数设置为0
 
     }
-    
     int tree_size = 2*n-1;
-    unsigned char block_size = log2(n);
+    unsigned char block_size = log2(n) + 1;
     for (int i=0; i<tree_size; i++) {
         if(IS_POWER_OF_2(i+1)){
             block_size --;
         }
-        struct binary_tree_node *node = get_node(i);
+        
+        binary_tree_node_t *node = get_node(i);
         node->left_max = block_size;
         node->right_max = block_size;
     }
@@ -178,24 +178,26 @@ buddy_init_memmap(struct Page *base, size_t n) {
 static struct Page *
 buddy_alloc_pages(size_t n) {
     assert(n > 0);
-    n = fixsize(n);
-
+    if (!IS_POWER_OF_2(n))
+        n = fixsize(n);
+    // cprintf("buddy_alloc_pages: n = %d\n", n);
     if (n > total_size) {
         return NULL;
     }
-    unsigned char log2n = log2(n);
-    unsigned char log2_total_size = log2(total_size);
+    unsigned char log2n = log2(n) + 1;
+    unsigned char log2_total_size = log2(total_size) + 1;
     unsigned char block_size = log2_total_size;
     
     int index = 0;
     int offset = 0;
-    binary_tree_node_t *node;
+    binary_tree_node_t *node = get_node(index);
+    
     while (block_size > log2n) {
         node = get_node(index);
         if (node->right_max >= log2n) {
             index = RIGHT_LEAF(index);
             block_size --;
-            offset += block_size;
+            offset += 1<<(block_size-1);
             continue;
         }
         if (node->left_max >= log2n) {
@@ -208,14 +210,16 @@ buddy_alloc_pages(size_t n) {
     if(block_size > log2n)
         return NULL;
     struct Page_bt *ret = binary_tree_root + offset;
-    ret->property = 1<<block_size;
-    ClearPageProperty(ret);
-    // node->left_max = 0;
-    // node->right_max = 0;
+    
+    node = get_node(index);
+    ret->property = 1<<(block_size-1);
+    // ClearPageProperty(ret);
+    node->left_max = 0;
+    node->right_max = 0;
     unsigned char maxn = 0;
     
     //最后进行更新
-    for(block_size; index; block_size++){
+    for(block_size; index>0; block_size++){
         int parent = PARENT(index);
         binary_tree_node_t *pnode = get_node(parent);
         if(index == LEFT_LEAF(parent)){
@@ -232,21 +236,33 @@ buddy_alloc_pages(size_t n) {
 }
 static void
 buddy_free_pages(struct Page *base, size_t n) {
+    
     assert(n > 0);
-    n = fixsize(n);
-
+    if(base == NULL)
+        return;
+    if (!IS_POWER_OF_2(n))
+        n = fixsize(n);
+    
     struct Page *p = base;
     for (; p != base + n; p ++) {
         assert(!PageReserved(p) && !PageProperty(p));
         p->flags = 0;
         set_page_ref(p, 0);
     }
-
+    // SetPageProperty(base);
+    
+    struct Page_bt *base_bt = (struct Page_bt *)base;
+    int index = get_index(base_bt - binary_tree_root, n, total_size);
+    binary_tree_node_t *node = get_node(index);
+    
     base->property = 0;
-    int index = get_index(p - base, n, total_size);
-    unsigned char block_size = log2(n);
+    unsigned char block_size = log2(n) + 1;
+    // if(block_size){
+    node->left_max = block_size-1;
+    node->right_max = block_size-1;
+    // }
     unsigned char maxn = block_size;
-    for(; index; index = PARENT(index)){
+    for(; index > 0; index = PARENT(index)){
         int parent = PARENT(index);
         binary_tree_node_t *pnode = get_node(parent);
         if(index == LEFT_LEAF(parent)){
@@ -323,6 +339,7 @@ buddy_total_size_pages(void) {
 // NOTICE: You SHOULD NOT CHANGE basic_check, default_check functions!
 static void
 buddy_check(void) {
+    cprintf("buddy_check:\n");
     int score = 0 ,sumscore = 4;
     // int count = 0, total = 0;
     
@@ -338,8 +355,9 @@ buddy_check(void) {
     int tot_size = buddy_total_size_pages();
     /*check 1: 占了一半+1的空间后无法再分配*/
     struct Page *p0 = alloc_pages(tot_size/2+1);
+    assert(p0 != NULL);
     struct Page *p1 = alloc_pages(1);
-    assert(p0 != NULL && p1 == NULL);
+    assert(p1 == NULL);
     free_pages(p0, tot_size/2+1);
     unsigned char log2n = log2(tot_size);
     #ifdef ucore_test
@@ -351,7 +369,10 @@ buddy_check(void) {
     struct Page *p[log2n+2];
     for(int i=0; i<log2n; i++){
         p[i] = alloc_pages(1<<i);
-        assert(p[i] != NULL);
+        char *s = "check 2: alloc 2^n failed";
+
+        // s[17]= '0'+;
+        assert_s(p[i] != NULL,s);
     }
     p[log2n] = alloc_pages(1);
     assert(p[log2n] != NULL);
