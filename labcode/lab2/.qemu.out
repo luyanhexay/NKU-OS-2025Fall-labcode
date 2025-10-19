@@ -30,6 +30,7 @@ DTB init completed
 (THU.CST) os is loading ...
 Special kernel symbols:
   entry  0xffffffffc02000d6 (virtual)
+<<<<<<< HEAD
   etext  0xffffffffc0201666 (virtual)
   edata  0xffffffffc0205018 (virtual)
   end    0xffffffffc0205078 (virtual)
@@ -37,6 +38,16 @@ Kernel executable memory footprint: 20KB
 memory management: best_fit_pmm_manager
 physcial memory map:
   memory: 0x0000000008000000, [0x0000000080000000, 0x0000000087ffffff].
+=======
+  etext  0xffffffffc020138c (virtual)
+  edata  0xffffffffc0205018 (virtual)
+  end    0xffffffffc0205070 (virtual)
+Kernel executable memory footprint: 20KB
+memory management: buddy_pmm_manager
+physcial memory map:
+  memory: 0x0000000008000000, [0x0000000080000000, 0x0000000087ffffff].
+buddy_check:
+>>>>>>> ddb5268ad174ef74d145c6c1f9c281236dfb1cb9
 check_alloc_page() succeeded!
 satp virtual address: 0xffffffffc0204000
 satp physical address: 0x0000000080204000
