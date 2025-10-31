@@ -1,4 +1,4 @@
-<h1 align="center"> 南开大学操作系统实验二 </h1>
+<h1 align="center"> 南开大学操作系统实验三 </h1>
 <p align="center">
 <a href="https://cc.nankai.edu.cn/"><img src="https://img.shields.io/badge/NKU-CS-07679f"></a>
 <a href="http://oslab.mobisys.cc/"><img src="https://img.shields.io/badge/NKU-OS-86006a"></a>
@@ -6,44 +6,175 @@
 <h5 align="center"><em>章壹程，仇科文，杨宇翔 </em></h5>
 <p align="center">
 <p align="center">
-  <a href="##练习1：完善中断处理">练习1</a>|
-  <a href="##练习2：实现 Best-Fit 连续物理内存分配算法（需要编程）">练习2</a>|
+  <a href="##练习1：完善中断处理（需要编程）">练习1</a>|
   <a href="## Challenge1：描述与理解中断流程">challenge 1</a>|
   <a href="## Challenge2：理解上下文切换机制">challenge 2</a>|
   <a href="## Challenge3：完善异常中断">challenge 3</a>|
   <a href="##分工">分工</a>
 </p>
 
+## 练习1：完善中断处理（需要编程）
 
+> 题目要求：请编程完善trap.c中的中断处理函数trap，在对时钟中断进行处理的部分填写kern/trap/trap.c函数中处理时钟中断的部分，使操作系统每遇到100次时钟中断后，调用print_ticks子程序，向屏幕上打印一行文字"100 ticks"，在打印完10行后调用sbi.h中的`sbi_shutdown()`函数关机。
 
+### 1. 实现代码
 
+在 `kern/trap/trap.c` 的 `interrupt_handler` 函数中，针对 `IRQ_S_TIMER` 的 case 分支，我们添加了以下代码：
 
+```c
+case IRQ_S_TIMER:
+    clock_set_next_event();           // (1) 设置下次时钟中断
+    if (++ticks % TICK_NUM == 0) {    // (2) 计数器加一并判断
+        print_ticks();                 // (3) 每100次中断打印一次
+        static int num = 0;            
+        if (++num == 10) {             // (4) 打印10次后关机
+            sbi_shutdown();
+        }
+    }
+    break;
+```
 
-## 练习1：完善中断处理
-### move a0,sp 的目的
-- 保存当前栈指针，以便在中断返回时恢复栈指针。
-- 将a0作为参数传给中断处理程序trap。
+同时，在文件开头添加了必要的头文件：
 
-### SAVE_ALL中寄存器保存在栈中的位置如何确定？
-- 先保存原先的栈顶指针到sscratch
-- 栈顶减少36个寄存器的大小，留下一个trapFrame结构体的空间。
-- 先保存x0-x31（除x2）到栈中，再使用s0-s4作跳板保存CSR 寄存器（sscratch、sepc、sstatus、sbadaddr、scause）的值到栈中（其中sscratch存到x2留下的空位，实际上就是栈顶）。
-- 保存与恢复按照同一套进行解析即可。
-### __alltraps 中是否需要保存所有寄存器？
+```c
+#include <sbi.h>  // 用于调用sbi_shutdown()函数
+```
+
+### 2. 实现说明
+
+#### (1) 设置下次时钟中断
+
+调用 `clock_set_next_event()` 函数，该函数通过 SBI 接口设置下一次时钟中断的触发时间。具体实现为：
+
+```c
+void clock_set_next_event(void) { 
+    sbi_set_timer(get_cycles() + timebase); 
+}
+```
+
+其中 `timebase` 在初始化时被设置为 `100000`，对应 QEMU 模拟器中约 10ms 的时间间隔（QEMU 的时钟频率为 10MHz）。这样每触发一次时钟中断后，就会设置下一次中断在 10ms 后发生。
+
+#### (2) 计数器递增
+
+使用 `++ticks` 对全局变量 `ticks` 进行前置自增操作。`ticks` 是一个 `volatile size_t` 类型的全局变量，定义在 `kern/driver/clock.c` 中，用于记录系统启动以来发生的时钟中断总次数。
+
+#### (3) 判断并打印
+
+使用 `ticks % TICK_NUM == 0` 判断是否达到 100 次中断（`TICK_NUM` 定义为 100）。如果是，则调用 `print_ticks()` 函数打印 "100 ticks" 信息。
+
+#### (4) 计数打印次数并关机
+
+使用静态局部变量 `num` 记录打印次数。每次打印后 `num` 自增，当 `num` 达到 10 时，调用 `sbi_shutdown()` 函数(定义在 `libs/sbi.h` 中)通过 SBI 接口关闭系统。
+
+### 3. 定时器中断处理流程
+
+完整的时钟中断处理流程如下：
+
+#### 3.1 中断触发
+
+当定时器计数达到 `sbi_set_timer()` 设定的时刻时，硬件触发时钟中断。此时，CPU 自动将 `sstatus.SIE` 保存到 `sstatus.SPIE`，并清零 `sstatus.SIE` 禁用中断；随后，CPU 依次会将当前 PC 值保存到 `sepc` 寄存器、将中断原因码（`IRQ_S_TIMER`）写入 `scause` 寄存器、将当前特权级保存到 `sstatus.SPP`并切换到 S 模式。最后，控制流跳转到 `stvec` 寄存器指向的地址（即 `__alltraps`）。
+
+#### 3.2 保存上下文
+
+进入 `__alltraps` 后，程序会使用 `SAVE_ALL` 汇编宏保存所有寄存器，执行内容依次包括：
+
+1. 先将原栈指针保存到 `sscratch`
+2. 调整栈指针，为 `trapframe` 结构体预留空间
+3. 依次保存 32 个通用寄存器（x0-x31）
+4. 保存 CSR 寄存器（`sstatus`、`sepc`、`sbadaddr`、`scause`）到栈上
+
+#### 3.3 调用中断处理函数
+
+```assembly
+move  a0, sp    # 将栈指针（即trapframe地址）作为参数传递
+jal trap        # 调用C语言中断处理函数
+```
+
+#### 3.4 分发处理
+
+在 C 语言的 `trap()` 函数中：
+
+```c
+void trap(struct trapframe *tf) { 
+    trap_dispatch(tf); 
+}
+```
+
+`trap_dispatch()` 根据 `scause` 的最高位判断是中断还是异常：
+
+```c
+static inline void trap_dispatch(struct trapframe *tf) {
+    if ((intptr_t)tf->cause < 0) {  // 最高位为1表示中断
+        interrupt_handler(tf);
+    } else {
+        exception_handler(tf);
+    }
+}
+```
+
+#### 3.5 时钟中断处理
+
+在 `interrupt_handler()` 中，根据中断类型进入对应的 case 分支，执行我们实现的时钟中断处理代码。
+
+#### 3.6 恢复上下文并返回
+
+处理完成后，程序通过 `__trapret` 标签执行 `RESTORE_ALL` 汇编宏，执行内容依次包括：
+
+- 从栈上恢复 `sstatus` 和 `sepc`
+- 恢复所有通用寄存器
+- 最后恢复栈指针
+
+#### 3.7 返回被中断程序
+
+也就是执行 `sret` 特权指令，包括根据 `sstatus.SPP` 切换回原特权级、将 `sstatus.SPIE` 恢复到 `sstatus.SIE` 以便重新使能中断、将 PC 设置为 `sepc` 的值从而跳转回被中断的位置继续执行。
+
+### 4. 运行结果
+
+执行 `make qemu` 后，系统成功运行并输出：
+
+```
+++ setup timer interrupts
+100 ticks
+100 ticks
+100 ticks
+100 ticks
+100 ticks
+100 ticks
+100 ticks
+100 ticks
+100 ticks
+100 ticks
+```
+
+系统每1秒(100次时钟中断)打印一次 "100 ticks"，共打印 10 次后自动关机，完全符合实验要求。
+
+### 5. 与 OS 原理的对应关系
+
+本练习中涉及许多知识点，下面是它们各自介绍以及它们与 OS 原理的对应关系。
+
+首先，本实验最核心的内容是时钟中断的相关处理机制。时钟中断是操作系统实现多任务调度的基础，通过定期触发中断，操作系统可以获得 CPU 控制权，从而实现时间片轮转等调度策略。
+
+其次，在中断发生时，操作系统需要保存当前的上下文信息（寄存器状态等），以便中断处理完成后能够正确恢复被中断程序的执行状态。这对应实验中的 `trapframe` 结构体以及保存和恢复它的两个宏，它们共同完成了保存并传递所有必要的寄存器值的工作。
+
+此外，`stvec` 寄存器的设置对应了中断向量表的概念，操作系统通过设置 `stvec` 来指定中断处理程序的入口地址，这样当中断发生时，硬件能够正确跳转到相应的处理代码。
 
 ## Challenge1：描述与理解中断流程
+
 ### csrw sscratch, sp
+
 - 保存当前栈指针到sscratch。
 - sscratch是专门
+
 ### csrrw s0, sscratch, x0
+
 - 保存sscratch到s0。
 - 将x0（zero）存入sscratch。
+
 ## Challenge2：理解上下文切换机制
 
 ## Challenge2：slub
 
 ## Challenge3：完善异常中断
-
 
 ## 分工
 
