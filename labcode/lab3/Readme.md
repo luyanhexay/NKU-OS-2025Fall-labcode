@@ -20,10 +20,24 @@
 
 
 ## 练习1：完善中断处理
+### move a0,sp 的目的
+- 保存当前栈指针，以便在中断返回时恢复栈指针。
+- 将a0作为参数传给中断处理程序trap。
 
+### SAVE_ALL中寄存器保存在栈中的位置如何确定？
+- 先保存原先的栈顶指针到sscratch
+- 栈顶减少36个寄存器的大小，留下一个trapFrame结构体的空间。
+- 先保存x0-x31（除x2）到栈中，再使用s0-s4作跳板保存CSR 寄存器（sscratch、sepc、sstatus、sbadaddr、scause）的值到栈中（其中sscratch存到x2留下的空位，实际上就是栈顶）。
+- 保存与恢复按照同一套进行解析即可。
+### __alltraps 中是否需要保存所有寄存器？
 
 ## Challenge1：描述与理解中断流程
-
+### csrw sscratch, sp
+- 保存当前栈指针到sscratch。
+- sscratch是专门
+### csrrw s0, sscratch, x0
+- 保存sscratch到s0。
+- 将x0（zero）存入sscratch。
 ## Challenge2：理解上下文切换机制
 
 ## Challenge2：slub
