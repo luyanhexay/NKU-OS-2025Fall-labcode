@@ -176,6 +176,39 @@ static inline void trap_dispatch(struct trapframe *tf) {
 
 ## Challenge3：完善异常中断
 
+> 题目要求：编程完善在触发一条非法指令异常和断点异常，在 kern/trap/trap.c的异常处理函数中捕获，并对其进行处理，简单输出异常类型和异常指令触发地址，即“Illegal instruction caught at 0x(地址)”，“ebreak caught at 0x（地址）”与“Exception type:Illegal instruction"，“Exception type: breakpoint”。
+
+
+
+#### 1. 实现代码
+
+在 `kern/trap/trap.c` 的 `exception_handler` 函数中，针对 `CAUSE_ILLEGAL_INSTRUCTION` 和 `CAUSE_BREAKPOINT` 的 case 分支，我们添加了以下代码：
+
+```c
+case CAUSE_ILLEGAL_INSTRUCTION:
+    cprintf("Exception type: Illegal instruction\n");
+    cprintf("Illegal instruction caught at 0x%08x\n", tf->epc);
+    tf->epc += 4;
+    break;
+case CAUSE_BREAKPOINT:
+    cprintf("Exception type: breakpoint\n");
+    cprintf("ebreak caught at 0x%08x\n", tf->epc);
+    tf->epc += 4;
+    break;
+```
+
+`sepc` (Supervisor Exception Program Counter)：它自动保存了**被中断指令的虚拟地址**。这份记录回答了“事发时程序执行到了哪里？”的问题，是未来恢复执行的关键。
+
+我们通过 `sepc` 来得知异常触发的地址。
+
+异常处理完毕后，需要根据中断或者异常的类型重新设置 `sepc` ，确保程序能够从正确的地址继续执行。对于系统调用，这通常是 `ecall`指令的下一条指令地址（即 `sepc + 4` ）；对于中断，这是被中断打断的指令地址（即`sepc`）；对于进程切换，这是新进程的起始地址。这里使用 `sepc + 4` 。
+
+### 
+
+
+
+
+
 ## 分工
 
 - [章壹程](https://github.com/u2003yuge)：challenge1、2
