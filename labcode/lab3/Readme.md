@@ -20,6 +20,9 @@
 
 
 ## 练习1：完善中断处理
+
+
+## Challenge1：描述与理解中断流程
 ### move a0,sp 的目的
 - 保存当前栈指针，以便在中断返回时恢复栈指针。
 - 将a0作为参数传给中断处理程序trap。
@@ -30,18 +33,19 @@
 - 先保存x0-x31（除x2）到栈中，再使用s0-s4作跳板保存CSR 寄存器（sscratch、sepc、sstatus、sbadaddr、scause）的值到栈中（其中sscratch存到x2留下的空位，实际上就是栈顶）。
 - 保存与恢复按照同一套进行解析即可。
 ### __alltraps 中是否需要保存所有寄存器？
-
-## Challenge1：描述与理解中断流程
+- 没必要，但为什么不？如果有成熟的协议，确实没必要都保存；但如果不能保证所有程序员都了解且遵守协议，那就需要保存所有寄存器。（最简单最保险）
+### 指出了中断或异常的具体原因
+## Challenge2：理解上下文切换机制
 ### csrw sscratch, sp
 - 保存当前栈指针到sscratch。
-- sscratch是专门
+- sscratch是专门异常或中断处理中用作临时存储，可以通过sscratch的数值判断是内核态产生的中断还是用户态产生的中断。（0为S态）
 ### csrrw s0, sscratch, x0
 - 保存sscratch到s0。
 - 将x0（zero）存入sscratch。
-## Challenge2：理解上下文切换机制
-
-## Challenge2：slub
-
+### save_all 保存寄存器 不恢复部分csr寄存器原因
+- scause(Supervisor Cause Register)：它记录了一个编码，精确指出了中断或异常的具体原因。
+- stval(Supervisor Trap Value)：它提供了与异常相关的附加信息，是重要的"现场证据"。
+- 这些数据是处理异常所需的，异常恢复后不再需要，没有保存的意义。而store是为了能在异常处理的时候使用。
 ## Challenge3：完善异常中断
 
 
