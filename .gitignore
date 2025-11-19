@@ -5,3 +5,6 @@ enviroment/
 .enviroment/
 **/obj/
 # **/bin/
+
+**/kernel
+**/ucore.img
