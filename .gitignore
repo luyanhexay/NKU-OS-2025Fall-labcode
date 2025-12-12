@@ -8,3 +8,7 @@ enviroment/
 
 **/kernel
 **/ucore.img
+
+**/.*.in
+**/.*.out
+**/.*.log

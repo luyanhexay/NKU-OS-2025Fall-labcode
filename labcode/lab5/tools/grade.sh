@@ -135,10 +135,15 @@ run_qemu() {
     fi
 
     t0=$(get_time)
+    # WSL2环境兼容性修改说明:
+    # 原脚本使用 "exec ... -serial file:$qemu_out",但在WSL2 Ubuntu 24.04环境下
+    # QEMU 4.1.1的 -serial file: 选项存在兼容性问题,无法正确写入文件
+    # 因此修改为使用shell重定向 "> $qemu_out 2>&1" 来捕获QEMU输出
+    # 同时移除了exec前缀,以便后续使用wait命令等待进程结束
     (
         ulimit -t $timeout
-        exec $qemu -nographic $qemuopts -serial file:$qemu_out -monitor null -no-reboot $qemuextra
-    ) > $out 2> $err &
+        $qemu -nographic $qemuopts -monitor null -no-reboot $qemuextra
+    ) > $qemu_out 2>&1 &
     pid=$!
 
     # wait for QEMU to start
@@ -162,6 +167,10 @@ run_qemu() {
         # make sure that QEMU is dead
         # on OS X, exiting gdb doesn't always exit qemu
         kill $pid > /dev/null 2>&1
+    else
+        # Wait for QEMU to finish (with timeout from ulimit)
+        # WSL2环境修改: 显式等待QEMU后台进程结束,确保输出完全写入文件
+        wait $pid > /dev/null 2>&1
     fi
 }
 
@@ -328,7 +337,10 @@ swapimg=$(make_print swapimg)
 qemuopts="-machine virt -nographic -bios default -device loader,file=bin/ucore.img,addr=0x80200000"
 
 ## set break-function, default is readline
-brkfun=readline
+## 禁用 brkfun 以避免 gdb 模式导致的问题
+## WSL2环境修改: 在WSL2环境下,gdb断点模式可能导致测试挂起
+## 将brkfun设置为空,禁用调试断点功能,直接运行测试
+brkfun=
 
 default_check() {
     pts=7

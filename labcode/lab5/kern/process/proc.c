@@ -82,6 +82,10 @@ void kernel_thread_entry(void);
 void forkrets(struct trapframe *tf);
 void switch_to(struct context *from, struct context *to);
 
+// Forward declarations
+static void hash_proc(struct proc_struct *proc);
+static void unhash_proc(struct proc_struct *proc);
+
 // alloc_proc - alloc a proc_struct and init all fields of proc_struct
 static struct proc_struct *
 alloc_proc(void)
@@ -114,7 +118,7 @@ alloc_proc(void)
         proc->mm = NULL;
         memset(&(proc->context), 0, sizeof(struct context));
         proc->tf = NULL;
-        proc->pgdir = boot_pgdir;
+        proc->pgdir = boot_pgdir_pa;
         proc->flags = 0;
         memset(proc->name, 0, PROC_NAME_LEN + 1);
 
@@ -163,6 +167,7 @@ set_links(struct proc_struct *proc)
     }
     proc->parent->cptr = proc;
     nr_process++;
+    hash_proc(proc);  // 将进程加入 hash_list，使 find_proc 能找到它
 }
 
 // remove_links - clean the relation links of process
