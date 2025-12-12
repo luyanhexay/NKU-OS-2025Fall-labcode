@@ -135,6 +135,19 @@ void interrupt_handler(struct trapframe *tf)
                 sbi_shutdown();
             }
         }
+        /* LAB5: 时钟中断触发进程调度
+         * 根据 LAB3 的时钟中断处理和进程调度机制,在每次时钟中断时
+         * 需要设置当前进程的 need_resched 标志为 1,以便在适当时机触发进程调度。
+         * 
+         * 这确保了用户进程之间能够正常进行时间片轮转调度,防止某个进程
+         * (如 spin 测试中的无限循环子进程)长期占用 CPU 而导致父进程无法执行。
+         * 
+         * 调度时机: trap 返回前会检查 need_resched 标志,若为 1 则调用 schedule()
+         * 进行进程切换,实现抢占式调度。
+         */
+        if (current) {
+            current->need_resched = 1;
+        }
         break;
     case IRQ_H_TIMER:
         cprintf("Hypervisor software interrupt\n");
