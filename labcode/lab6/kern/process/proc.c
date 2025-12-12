@@ -89,7 +89,7 @@ alloc_proc(void)
     struct proc_struct *proc = kmalloc(sizeof(struct proc_struct));
     if (proc != NULL)
     {
-        // LAB4:EXERCISE1 YOUR CODE
+        // LAB4:填写你在lab4中实现的代码
         /*
          * below fields in proc_struct need to be initialized
          *       enum proc_state state;                      // Process state
@@ -105,31 +105,24 @@ alloc_proc(void)
          *       uint32_t flags;                             // Process flag
          *       char name[PROC_NAME_LEN + 1];               // Process name
          */
-        proc->state = PROC_UNINIT;
-        proc->pid = -1;
-        proc->runs = 0;
-        proc->kstack = 0;
-        proc->need_resched = 0;
-        proc->parent = NULL;
-        proc->mm = NULL;
-        memset(&(proc->context), 0, sizeof(struct context));
-        proc->tf = NULL;
-        proc->pgdir = boot_pgdir;
-        proc->flags = 0;
-        memset(proc->name, 0, PROC_NAME_LEN + 1);
 
-        // LAB5 YOUR CODE : (update LAB4 steps)
+        // LAB5:填写你在lab5中实现的代码 (update LAB4 steps)
         /*
          * below fields(add in LAB5) in proc_struct need to be initialized
          *       uint32_t wait_state;                        // waiting state
          *       struct proc_struct *cptr, *yptr, *optr;     // relations between processes
          */
 
-        proc->wait_state = 0;           // 等待状态初始化为0
-        proc->cptr = NULL;              // 子进程指针
-        proc->yptr = NULL;              // 弟弟进程指针  
-        proc->optr = NULL;              // 哥哥进程指针
-
+        // LAB6:YOUR CODE (update LAB5 steps)
+        /*
+         * below fields(add in LAB6) in proc_struct need to be initialized
+         *       struct run_queue *rq;                       // run queue contains Process
+         *       list_entry_t run_link;                      // the entry linked in run queue
+         *       int time_slice;                             // time slice for occupying the CPU
+         *       skew_heap_entry_t lab6_run_pool;            // entry in the run pool (lab6 stride)
+         *       uint32_t lab6_stride;                       // stride value (lab6 stride)
+         *       uint32_t lab6_priority;                     // priority value (lab6 stride)
+         */
     }
     return proc;
 }
@@ -234,7 +227,7 @@ void proc_run(struct proc_struct *proc)
 {
     if (proc != current)
     {
-        // LAB4:EXERCISE3 YOUR CODE
+        // LAB4:填写你在lab4中实现的代码
         /*
          * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
          * MACROs or Functions:
@@ -243,18 +236,6 @@ void proc_run(struct proc_struct *proc)
          *   lsatp():                   Modify the value of satp register
          *   switch_to():              Context switching between two processes
          */
-        bool intr_flag;
-        struct proc_struct *prev = current, *next = proc;
-        
-        local_intr_save(intr_flag);
-        {
-            current = proc;
-            
-            lsatp(next->pgdir);
-            
-            switch_to(&(prev->context), &(next->context));
-        }
-        local_intr_restore(intr_flag);
     }
 }
 
@@ -438,7 +419,7 @@ int do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf)
         goto fork_out;
     }
     ret = -E_NO_MEM;
-    // LAB4:EXERCISE2 YOUR CODE
+    // LAB4:填写你在lab4中实现的代码
     /*
      * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
      * MACROs or Functions:
@@ -457,41 +438,14 @@ int do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf)
      */
 
     //    1. call alloc_proc to allocate a proc_struct
-    if ((proc = alloc_proc()) == NULL) {
-        goto fork_out;
-    }
-    proc->parent = current;
-
-    // update step 1: set child proc's parent to current process, make sure current process's wait_state is 0
-    proc->parent = current;          // 设置父进程为当前进程
-    current->wait_state = 0;         // 确保当前进程的等待状态为0
-
     //    2. call setup_kstack to allocate a kernel stack for child process
-    if (setup_kstack(proc) != 0) {
-        goto bad_fork_cleanup_proc;
-    }
-
     //    3. call copy_mm to dup OR share mm according clone_flag
-    if (copy_mm(clone_flags, proc) != 0) {
-        goto bad_fork_cleanup_kstack;
-    }
-
     //    4. call copy_thread to setup tf & context in proc_struct
-    copy_thread(proc, stack, tf);
-    proc->pid = get_pid();
-
-    // update step 5: insert proc_struct into hash_list && proc_list, set the relation links of process
-    // 使用 set_links 函数设置进程关系，替代原来的直接添加到链表
-    set_links(proc);
-
+    //    5. insert proc_struct into hash_list && proc_list
     //    6. call wakeup_proc to make the new child process RUNNABLE
-     wakeup_proc(proc);
-
     //    7. set ret vaule using child proc's pid
-    ret = proc->pid;
 
-    // LAB5 YOUR CODE : (update LAB4 steps)
-    // TIPS: you should modify your written code in lab4(step1 and step5), not add more code.
+    // LAB5:填写你在lab5中实现的代码 (update LAB4 steps)
     /* Some Functions
      *    set_links:  set the relation links of process.  ALSO SEE: remove_links:  lean the relation links of process
      *    -------------------
@@ -714,7 +668,7 @@ load_icode(unsigned char *binary, size_t size)
     assert(pgdir_alloc_page(mm->pgdir, USTACKTOP - 3 * PGSIZE, PTE_USER) != NULL);
     assert(pgdir_alloc_page(mm->pgdir, USTACKTOP - 4 * PGSIZE, PTE_USER) != NULL);
 
-    //(5) set current process's mm, sr3, and set satp reg = physical addr of Page Directory
+    //(5) set current process's mm, sr3, and set CR3 reg = physical addr of Page Directory
     mm_count_inc(mm);
     current->mm = mm;
     current->pgdir = PADDR(mm->pgdir);
@@ -725,20 +679,15 @@ load_icode(unsigned char *binary, size_t size)
     // Keep sstatus
     uintptr_t sstatus = tf->status;
     memset(tf, 0, sizeof(struct trapframe));
-    /* LAB5:EXERCISE1 YOUR CODE
-     * should set tf->gpr.sp, tf->epc, tf->status
+    /* LAB5:填写你在lab5中实现的代码
+     * should set tf_cs,tf_ds,tf_es,tf_ss,tf_esp,tf_eip,tf_eflags
      * NOTICE: If we set trapframe correctly, then the user level process can return to USER MODE from kernel. So
-     *          tf->gpr.sp should be user stack top (the value of sp)
-     *          tf->epc should be entry point of user program (the value of sepc)
-     *          tf->status should be appropriate for user program (the value of sstatus)
-     *          hint: check meaning of SPP, SPIE in SSTATUS, use them by SSTATUS_SPP, SSTATUS_SPIE(defined in risv.h)
+     *          tf_cs should be USER_CS segment (see memlayout.h)
+     *          tf_ds=tf_es=tf_ss should be USER_DS segment
+     *          tf_esp should be the top addr of user stack (USTACKTOP)
+     *          tf_eip should be the entry point of this binary program (elf->e_entry)
+     *          tf_eflags should be set to enable computer to produce Interrupt
      */
-
-    tf->gpr.sp = USTACKTOP;              // 用户栈顶指针
-    tf->epc = elf->e_entry;              // 程序入口地址
-    tf->status = sstatus & ~(SSTATUS_SPP | SSTATUS_SPIE | SSTATUS_SIE);
-    tf->status |= SSTATUS_SPIE;          // 允许用户态中断
-
 
     ret = 0;
 out:
@@ -898,25 +847,23 @@ int do_kill(int pid)
     return -E_INVAL;
 }
 
-// kernel_execve - do SYS_exec syscall to exec a user program called by user_main kernel_thread
+// kernel_execve - build a new trapframe, execute do_execve in-kernel, and return to user mode via __trapret
 static int
 kernel_execve(const char *name, unsigned char *binary, size_t size)
 {
-    int64_t ret = 0, len = strlen(name);
-    //   ret = do_execve(name, len, binary, size);
+    int ret;
+    size_t len = strlen(name);
+    struct trapframe *old_tf = current->tf;
+    struct trapframe *new_tf = (struct trapframe *)(current->kstack + KSTACKSIZE - sizeof(struct trapframe));
+    memcpy(new_tf, old_tf, sizeof(struct trapframe));
+    current->tf = new_tf;
+    ret = do_execve(name, len, binary, size);
     asm volatile(
-        "li a0, %1\n"
-        "lw a1, %2\n"
-        "lw a2, %3\n"
-        "lw a3, %4\n"
-        "lw a4, %5\n"
-        "li a7, 10\n"
-        "ebreak\n"
-        "sw a0, %0\n"
-        : "=m"(ret)
-        : "i"(SYS_exec), "m"(name), "m"(len), "m"(binary), "m"(size)
+        "mv sp, %0\n"
+        "j __trapret\n"
+        :
+        : "r"(new_tf)
         : "memory");
-    cprintf("ret = %d\n", ret);
     return ret;
 }
 
@@ -947,7 +894,7 @@ user_main(void *arg)
 #ifdef TEST
     KERNEL_EXECVE2(TEST, TESTSTART, TESTSIZE);
 #else
-    KERNEL_EXECVE(exit);
+    KERNEL_EXECVE(priority);
 #endif
     panic("user_main execve failed.\n");
 }
@@ -1029,4 +976,13 @@ void cpu_idle(void)
             schedule();
         }
     }
+}
+// FOR LAB6, set the process's priority (bigger value will get more CPU time)
+void lab6_set_priority(uint32_t priority)
+{
+    cprintf("set priority to %d\n", priority);
+    if (priority == 0)
+        current->lab6_priority = 1;
+    else
+        current->lab6_priority = priority;
 }
