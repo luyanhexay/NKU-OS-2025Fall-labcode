@@ -490,7 +490,7 @@ int do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf)
     set_links(proc);
 
     //    6. call wakeup_proc to make the new child process RUNNABLE
-     wakeup_proc(proc);
+    wakeup_proc(proc);
 
     //    7. set ret vaule using child proc's pid
     ret = proc->pid;
@@ -952,7 +952,7 @@ user_main(void *arg)
 #ifdef TEST
     KERNEL_EXECVE2(TEST, TESTSTART, TESTSIZE);
 #else
-    KERNEL_EXECVE(exit);
+    KERNEL_EXECVE(cowtest);
 #endif
     panic("user_main execve failed.\n");
 }
