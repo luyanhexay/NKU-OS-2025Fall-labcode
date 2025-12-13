@@ -202,6 +202,95 @@ out:
     return ret;
 }
 
+// do_pgfault - handle page fault, especially for COW
+int do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
+    int ret = -E_INVAL;
+    
+    if (mm == NULL) {
+        goto failed;
+    }
+    
+    // Find VMA for the faulting address
+    struct vma_struct *vma = find_vma(mm, addr);
+    if (vma == NULL || vma->vm_start > addr) {
+        goto failed;
+    }
+    
+    // Get the page table entry
+    pte_t *ptep = get_pte(mm->pgdir, addr, 0);
+    
+    // Case 1: Page is not present - this shouldn't happen in COW
+    if (ptep == NULL || !(*ptep & PTE_V)) {
+        // Page not present, need to allocate
+        if (get_pte(mm->pgdir, addr, 1) == NULL) {
+            goto failed;
+        }
+        struct Page *page = alloc_page();
+        if (page == NULL) {
+            goto failed;
+        }
+        ret = page_insert(mm->pgdir, page, addr, PTE_U | PTE_R | PTE_W);
+        if (ret != 0) {
+            free_page(page);
+            goto failed;
+        }
+        return 0;
+    }
+    
+    // Case 2: COW page fault - page is present but marked as COW
+    if ((*ptep & PTE_V) && (*ptep & PTE_COW)) {
+        // This is a COW page
+        struct Page *page = pte2page(*ptep);
+        struct Page *npage = NULL;
+        
+        // Check if this page is shared (ref count > 1)
+        if (page_ref(page) > 1) {
+            // Shared page - need to copy
+            npage = alloc_page();
+            if (npage == NULL) {
+                ret = -E_NO_MEM;
+                goto failed;
+            }
+            
+            // Copy page content
+            void *src_kva = page2kva(page);
+            void *dst_kva = page2kva(npage);
+            memcpy(dst_kva, src_kva, PGSIZE);
+            
+            // Get original permissions and restore write permission
+            uint32_t perm = (*ptep & PTE_USER) | PTE_W;
+            perm &= ~PTE_COW;  // Clear COW flag
+            
+            // Insert new page with write permission
+            page_remove(mm->pgdir, addr);
+            ret = page_insert(mm->pgdir, npage, addr, perm);
+            if (ret != 0) {
+                free_page(npage);
+                goto failed;
+            }
+        } else {
+            // Exclusive page - just restore write permission
+            uint32_t perm = (*ptep & PTE_USER) | PTE_W;
+            perm &= ~PTE_COW;  // Clear COW flag
+            *ptep = (*ptep & ~PTE_COW) | PTE_W;
+            tlb_invalidate(mm->pgdir, addr);
+        }
+        
+        return 0;
+    }
+    
+    // Case 3: Store to read-only page (not COW) - this is an error
+    if (error_code == CAUSE_STORE_PAGE_FAULT && !(*ptep & PTE_W)) {
+        ret = -E_NO_MEM;
+        goto failed;
+    }
+    
+    return 0;
+    
+failed:
+    return ret;
+}
+
 int dup_mmap(struct mm_struct *to, struct mm_struct *from)
 {
     assert(to != NULL && from != NULL);
@@ -218,7 +307,8 @@ int dup_mmap(struct mm_struct *to, struct mm_struct *from)
 
         insert_vma_struct(to, nvma);
 
-        bool share = 0;
+        // Enable COW for testing
+        bool share = 1;  // Enable Copy-on-Write mechanism
         if (copy_range(to->pgdir, from->pgdir, vma->vm_start, vma->vm_end, share) != 0)
         {
             return -E_NO_MEM;

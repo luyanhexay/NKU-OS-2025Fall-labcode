@@ -216,12 +216,25 @@ void exception_handler(struct trapframe *tf)
         break;
     case CAUSE_FETCH_PAGE_FAULT:
         cprintf("Instruction page fault\n");
+        if ((tf->status & SSTATUS_SPP) == 0) {
+            do_pgfault(current->mm, CAUSE_FETCH_PAGE_FAULT, tf->tval);
+        }
         break;
     case CAUSE_LOAD_PAGE_FAULT:
         cprintf("Load page fault\n");
+        if ((tf->status & SSTATUS_SPP) == 0) {
+            do_pgfault(current->mm, CAUSE_LOAD_PAGE_FAULT, tf->tval);
+        }
         break;
     case CAUSE_STORE_PAGE_FAULT:
-        cprintf("Store/AMO page fault\n");
+        // Handle COW for store page fault
+        if ((tf->status & SSTATUS_SPP) == 0) {
+            if (do_pgfault(current->mm, CAUSE_STORE_PAGE_FAULT, tf->tval) != 0) {
+                cprintf("Store/AMO page fault\n");
+            }
+        } else {
+            cprintf("Store/AMO page fault\n");
+        }
         break;
     default:
         print_trapframe(tf);
