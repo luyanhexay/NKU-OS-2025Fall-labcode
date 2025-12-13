@@ -121,33 +121,23 @@ void interrupt_handler(struct trapframe *tf)
         // In fact, Call sbi_set_timer will clear STIP, or you can clear it
         // directly.
         // cprintf("Supervisor timer interrupt\n");
-        /* LAB3 EXERCISE1   YOUR CODE :  */
-        /*(1)设置下次时钟中断- clock_set_next_event()
-         *(2)计数器（ticks）加一
-         *(3)当计数器加到100的时候，我们会输出一个`100ticks`表示我们触发了100次时钟中断，同时打印次数（num）加一
-         * (4)判断打印次数，当打印次数为10时，调用<sbi.h>中的关机函数关机
+        /* LAB5 GRADE   YOUR CODE :  */
+        /* 时间片轮转： 
+         *(1) 设置下一次时钟中断（clock_set_next_event）
+         *(2) ticks 计数器自增
+         *(3) 每 TICK_NUM 次中断（如 100 次），进行判断当前是否有进程正在运行，如果有则标记该进程需要被重新调度（current->need_resched）
          */
         clock_set_next_event();
         if (++ticks % TICK_NUM == 0) {
             print_ticks();
+            if (current) {
+                current->need_resched = 1;
+            }
             static int num = 0;
             if (++num == 10) {
                 sbi_shutdown();
             }
         }
-        /* LAB5: 时钟中断触发进程调度
-         * 根据 LAB3 的时钟中断处理和进程调度机制,在每次时钟中断时
-         * 需要设置当前进程的 need_resched 标志为 1,以便在适当时机触发进程调度。
-         * 
-         * 这确保了用户进程之间能够正常进行时间片轮转调度,防止某个进程
-         * (如 spin 测试中的无限循环子进程)长期占用 CPU 而导致父进程无法执行。
-         * 
-         * 调度时机: trap 返回前会检查 need_resched 标志,若为 1 则调用 schedule()
-         * 进行进程切换,实现抢占式调度。
-         */
-        // if (current) {
-        current->need_resched = 1;
-        // }
         break;
     case IRQ_H_TIMER:
         cprintf("Hypervisor software interrupt\n");
