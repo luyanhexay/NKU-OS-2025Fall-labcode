@@ -333,6 +333,7 @@ static inline bool tlb_hit(target_ulong tlb_addr, target_ulong addr)
 **调试时**，我们在终端2中添加断点：
 
 ```
+(gdb) handle SIGPIPE nostop noprint
 (gdb) b get_physical_address if addr == 0x80200000
 ```
 
@@ -524,6 +525,30 @@ return retpc;
 **页表查询实验中的地址转换** 
 
 在页表查询实验中，当TLB未命中时，QEMU需要模拟MMU进行多级页表遍历。这个遍历过程本身也是由客户机指令（内存加载、位操作、条件判断等）组成的。QEMU同样会通过TCG将这些指令翻译成主机代码来执行。因此，您当时单步调试的页表遍历代码，本质上也是在TCG生成的翻译块中运行的。
+
+
+
+> 3. 记录下你调试过程中比较~~抓马~~有趣的细节，以及在观察模拟器通过软件模拟硬件执行的时候了解到的知识。
+
+看到  *future shared library load? (y or [n])*  就心脏骤停。刚开始一直显示函数不存在，试图添加文件结果告诉我文件也不存在，直接 **红了** 。后面发现是在lab2里改了 QEMU := /path/to/your/qemu-4.1.1，lab5里没改 😅 。
+
+还有不是所有的qemu的源码都能被添加断点。疑似只有`target/riscv`中的源码才能调试。
+
+点名：
+
+位于 `qemu-4.1.1\target\riscv\op_helper.c` 中的 `helper_sret` ， 	以及
+
+位于 `qemu-4.1.1\target\i386\seg_helper.c ` 中的 `helper_syscall` 和 `helper_sysret` 。
+
+我搜 sret 结果搜出来的是下面的，结果试图添加断点时一直添加不上去，以为还是配置的问题，结果后面发现riscv 里压根没有专门给 syscall 用的函数，但是有一个名字还不太一样的 `helper_sret` ，**红了**。
+
+
+
+> 4. 记录实验过程中，有哪些通过大模型解决的问题，记录下当时的情景，你的思路，以及你和大模型交互的过程。
+
+依旧帮忙找代码这块。不然我永远都找不到原来处理 syscall 的是 `riscv_cpu_do_interrupt` 。
+
+以及帮忙解决  *future shared library load? (y or [n])* 的问题，看了回答才想起来 makefile 里 qemu 配置的问题。
 
 
 
