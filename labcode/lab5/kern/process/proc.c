@@ -490,7 +490,7 @@ int do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf)
     set_links(proc);
 
     //    6. call wakeup_proc to make the new child process RUNNABLE
-     wakeup_proc(proc);
+    wakeup_proc(proc);
 
     //    7. set ret vaule using child proc's pid
     ret = proc->pid;

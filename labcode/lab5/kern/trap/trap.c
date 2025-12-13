@@ -145,9 +145,9 @@ void interrupt_handler(struct trapframe *tf)
          * 调度时机: trap 返回前会检查 need_resched 标志,若为 1 则调用 schedule()
          * 进行进程切换,实现抢占式调度。
          */
-        if (current) {
-            current->need_resched = 1;
-        }
+        // if (current) {
+        current->need_resched = 1;
+        // }
         break;
     case IRQ_H_TIMER:
         cprintf("Hypervisor software interrupt\n");
