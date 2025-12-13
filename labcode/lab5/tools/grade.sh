@@ -140,16 +140,37 @@ run_qemu() {
     # QEMU 4.1.1的 -serial file: 选项存在兼容性问题,无法正确写入文件
     # 因此修改为使用shell重定向 "> $qemu_out 2>&1" 来捕获QEMU输出
     # 同时移除了exec前缀,以便后续使用wait命令等待进程结束
-    (
-        ulimit -t $timeout
-        $qemu -nographic $qemuopts -monitor null -no-reboot $qemuextra
-    ) > $qemu_out 2>&1 &
-    pid=$!
-
-    # wait for QEMU to start
-    sleep 1
+    #
+    # 问题1: QEMU -serial file: 选项在WSL2下失效
+    #   原脚本: exec $qemu ... -serial file:$qemu_out
+    #   症状: QEMU 4.1.1在WSL2 Ubuntu 24.04下无法正确写入文件,导致所有测试失败(0分)
+    #   原因: WSL2的文件系统通过9P协议桥接到Windows,QEMU的文件操作存在兼容性问题
+    #   修复: 改用shell重定向 "> $qemu_out" 捕获输出
+    #
+    # 问题2: 输出缓冲导致的竞态条件
+    #   症状: 测试分数不稳定,在109/130、116/130、123/130、130/130之间波动
+    #   原因: Shell重定向的多层缓冲机制
+    #     QEMU stdout -> shell进程缓冲 -> WSL2内核缓冲 -> Windows文件系统 -> 磁盘
+    #     在forktest等大量输出的测试中,进程退出时缓冲区可能未完全刷新
+    #     grade.sh读取文件时可能获得不完整的输出,导致测试判定失败
+    #   修复方案:
+    #     a) 使用 stdbuf -o0 -e0 禁用stdio缓冲,让数据直接写入
+    #     b) 移除exec前缀,使用wait显式等待进程结束
+    #     c) 添加sync和sleep确保文件系统缓冲刷新
+    #
+    # 完全消除异步的方案: 改为管道+tee同步写入
+    #   优势: 数据流直接通过管道,无后台进程,无异步I/O,完全同步
+    #   原理: qemu输出 | tee同步写入文件,主进程等待管道结束
+    #   缺点: ulimit -t超时控制需要改为timeout命令实现
 
     if [ -n "$brkfun" ]; then
+        # GDB模式: 需要后台运行QEMU以便gdb连接
+        (
+            ulimit -t $timeout
+            stdbuf -o0 -e0 $qemu -nographic $qemuopts -monitor null -no-reboot $qemuextra 2>&1
+        ) > $qemu_out &
+        pid=$!
+        sleep 1
         # find the address of the kernel $brkfun function
         brkaddr=`$grep " $brkfun\$" $sym_table | $sed -e's/ .*$//g'`
         brkaddr_phys=`echo $brkaddr | sed "s/^c0/00/g"`
@@ -168,9 +189,25 @@ run_qemu() {
         # on OS X, exiting gdb doesn't always exit qemu
         kill $pid > /dev/null 2>&1
     else
-        # Wait for QEMU to finish (with timeout from ulimit)
-        # WSL2环境修改: 显式等待QEMU后台进程结束,确保输出完全写入文件
-        wait $pid > /dev/null 2>&1
+        # 正常模式: 完全同步的前台执行方案
+        # 
+        # 完全消除异步的方法: 在子shell中前台运行QEMU
+        # 1. 使用子shell隔离ulimit设置
+        # 2. 前台运行QEMU(非后台&),shell会等待其完全结束
+        # 3. stdbuf禁用缓冲,数据直接写入
+        # 4. 重定向在子shell内完成,进程结束时自动刷新
+        # 5. 无wait,无sync,无后台进程,完全同步
+        #
+        # 这比后台进程+wait更可靠,因为:
+        # - 前台执行:shell保证进程完全结束才返回
+        # - 无竞态:没有后台进程的异步特性
+        # - 简单:最少的组件,最少的故障点
+        
+        (
+            ulimit -t $timeout
+            stdbuf -o0 -e0 $qemu -nographic $qemuopts -monitor null -no-reboot $qemuextra 2>&1
+        ) > $qemu_out
+        # 子shell结束意味着QEMU已完全结束且输出已刷新
     fi
 }
 
