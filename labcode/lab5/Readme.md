@@ -5,9 +5,17 @@
 </p>
 <h5 align="center"><em>章壹程，仇科文，杨宇翔 </em></h5>
 <p align="center">
-  <a href="#练习0填写已有实验">练习0</a>|
-    <!-- TODO -->
+  <a href="#练习 0：填写已有实验">练习0</a>|
+  
+  <a href="#练习1填写已有实验">练习1</a>|
+  
+  <a href="#练习 2: 父进程复制自己的内存空间给子进程（需要编码）">练习2</a>|
+  
+  <a href="#练习 3: 阅读分析源代码，理解进程执行 fork/exec/wait/exit 的实现，以及系统调用的实现（不需要编码）">练习3</a>|
+  <a href="#扩展练习 Challenge ">扩展练习|
+  
   <a href="#分工">分工</a>
+  
 </p>
 
 ---
@@ -89,6 +97,6 @@ PROC_UNINIT -- proc_init/wakeup_proc --> PROC_RUNNABLE -- try_free_pages/do_wait
 
 ## 分工
 
-- [章壹程](https://github.com/u2003yuge)：
-- [仇科文](https://github.com/luyanhexay)：
-- [杨宇翔](https://github.com/sheepspacefly)：
+- [章壹程](https://github.com/u2003yuge)：练习3
+- [仇科文](https://github.com/luyanhexay)：练习1、2 扩展练习
+- [杨宇翔](https://github.com/sheepspacefly)：分支
