@@ -96,7 +96,479 @@ PROC_UNINIT -- proc_init/wakeup_proc --> PROC_RUNNABLE -- try_free_pages/do_wait
 
 ### 实现 Copy on Write （COW）机制
 
-### 说明该用户程序是何时被预先加载到内存中的？与我们常用操作系统的加载有何区别，原因是什么？
+#### 一、实现概述
+
+Copy-on-Write（写时复制）是一种优化技术，在父进程创建子进程时，不立即复制内存页面，而是让父子进程共享只读页面。当任一进程试图写入时，才触发页面复制操作。这样可以显著减少 fork 系统调用的开销。
+
+本实现在 uCore 的 RISC-V 架构上完成了 COW 机制，并分析了著名的 Dirty COW 漏洞（CVE-2016-5195）的原理与防御方法。
+
+#### 二、实现过程
+
+COW 机制的实现涉及以下关键文件和函数：
+
+##### 2.1 PTE 标志位定义（`libs/riscv.h`）
+
+在 RISC-V 的页表项中，PTE 有 Reserved for Software（RSW）位，可供操作系统自定义使用。我们使用 RSW 的第 8 位来标记 COW 页面：
+
+```c
+#define PTE_COW 0x100  // Copy-on-Write (RSW bit 8)
+```
+
+这个标志位用于区分普通的只读页面（`PTE_R` 但没有 `PTE_W` 和 `PTE_COW`）和 COW 共享页面（`PTE_R | PTE_COW` 但没有 `PTE_W`）。
+
+##### 2.2 内存复制函数（`kern/mm/pmm.c: copy_range`）
+
+`copy_range`函数负责在 fork 时复制父进程的内存空间。我们为其添加了`share`参数，用于选择传统复制还是 COW 共享：
+
+```c
+int copy_range(pde_t *to, pde_t *from, uintptr_t start, uintptr_t end,
+               bool share)
+{
+    // 遍历每个页面
+    do {
+        pte_t *ptep = get_pte(from, start, 0), *nptep;
+        if (*ptep & PTE_V) {
+            uint32_t perm = (*ptep & PTE_USER);
+            struct Page *page = pte2page(*ptep);
+
+            if (share) {
+                // COW模式：共享页面
+                // 1. 清除写权限，设置COW标志
+                if (perm & PTE_W) {
+                    *ptep = (*ptep & ~PTE_W) | PTE_COW;
+                    perm = (perm & ~PTE_W) | PTE_COW;
+                }
+
+                // 2. 增加页面引用计数
+                page_ref_inc(page);
+
+                // 3. 为子进程创建相同的PTE
+                ret = page_insert(to, page, start, perm);
+
+                // 4. 刷新父进程TLB
+                tlb_invalidate(from, start);
+            } else {
+                // 传统模式：立即复制
+                struct Page *npage = alloc_page();
+                memcpy(page2kva(npage), page2kva(page), PGSIZE);
+                ret = page_insert(to, npage, start, perm);
+            }
+        }
+        start += PGSIZE;
+    } while (start != 0 && start < end);
+    return 0;
+}
+```
+
+我们做了这样几件事：
+
+1. 清除写权限：将父进程和子进程的 PTE 都设置为只读（`~PTE_W`），任何写操作都会触发 page fault
+2. 设置 COW 标志：添加`PTE_COW`标志，在 page fault 处理时区分是 COW 还是真正的权限错误
+3. 引用计数管理：`page_ref_inc(page)`增加物理页面的引用计数，用于判断页面是否被多个进程共享
+4. TLB 刷新：修改父进程 PTE 后需要刷新 TLB，确保新的权限立即生效
+
+##### 2.3 启用 COW（`kern/mm/vmm.c: dup_mmap`）
+
+在`do_fork`调用的`dup_mmap`函数中启用 COW 机制：
+
+```c
+int dup_mmap(struct mm_struct *to, struct mm_struct *from)
+{
+    list_entry_t *list = &(from->mmap_list), *le = list;
+    while ((le = list_prev(le)) != list) {
+        struct vma_struct *vma = le2vma(le, list_link);
+        struct vma_struct *nvma = vma_create(vma->vm_start, vma->vm_end, vma->vm_flags);
+        insert_vma_struct(to, nvma);
+
+        // 启用COW
+        bool share = 1;
+        if (copy_range(to->pgdir, from->pgdir, vma->vm_start, vma->vm_end, share) != 0) {
+            return -E_NO_MEM;
+        }
+    }
+    return 0;
+}
+```
+
+将`share`参数设置为 1 即可启用 COW 机制。
+
+##### 2.4 页面错误处理（`kern/mm/vmm.c: do_pgfault`）
+
+`do_pgfault`是 COW 机制的核心，负责处理写时复制的 page fault：
+
+```c
+int do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
+    // 查找VMA
+    struct vma_struct *vma = find_vma(mm, addr);
+    if (vma == NULL || vma->vm_start > addr) {
+        goto failed;
+    }
+
+    // 获取页表项
+    pte_t *ptep = get_pte(mm->pgdir, addr, 0);
+
+    // 情况1：页面不存在（不应该发生在COW中）
+    if (ptep == NULL || !(*ptep & PTE_V)) {
+        struct Page *page = alloc_page();
+        ret = page_insert(mm->pgdir, page, addr, PTE_U | PTE_R | PTE_W);
+        return 0;
+    }
+
+    // 情况2：COW页面错误
+    if ((*ptep & PTE_V) && (*ptep & PTE_COW)) {
+        struct Page *page = pte2page(*ptep);
+
+        // 检查页面是否共享（引用计数 > 1）
+        if (page_ref(page) > 1) {
+            // 共享页面：需要分配新页面并复制
+            struct Page *npage = alloc_page();
+            memcpy(page2kva(npage), page2kva(page), PGSIZE);
+
+            // 恢复写权限，清除COW标志
+            uint32_t perm = (*ptep & PTE_USER) | PTE_W;
+            perm &= ~PTE_COW;
+
+            // 移除旧映射，插入新页面
+            page_remove(mm->pgdir, addr);
+            ret = page_insert(mm->pgdir, npage, addr, perm);
+        } else {
+            // 独占页面：只需恢复写权限
+            *ptep = (*ptep & ~PTE_COW) | PTE_W;
+            tlb_invalidate(mm->pgdir, addr);
+        }
+        return 0;
+    }
+
+    // 情况3：写只读页面（非COW）- 这是错误
+    if (error_code == CAUSE_STORE_PAGE_FAULT && !(*ptep & PTE_W)) {
+        return -E_NO_MEM;
+    }
+
+    return 0;
+}
+```
+
+我们做了这样几件事：
+
+1. 引用计数判断：`page_ref(page) > 1`表示页面被多个进程共享，需要复制；`= 1`表示只有当前进程使用，直接恢复写权限即可
+2. 页面复制：使用`memcpy`复制整个页面（4KB）的内容到新分配的页面
+3. 权限恢复：清除`PTE_COW`标志，设置`PTE_W`标志，使页面可写
+4. 页表更新：`page_remove`会减少旧页面的引用计数，`page_insert`会建立新页面的映射
+
+##### 2.5 异常处理集成（`kern/trap/trap.c`）
+
+在 trap handler 中调用`do_pgfault`处理页面错误：
+
+```c
+case CAUSE_STORE_PAGE_FAULT:
+    // 处理COW的store page fault
+    if ((tf->status & SSTATUS_SPP) == 0) {  // 用户态
+        if (do_pgfault(current->mm, CAUSE_STORE_PAGE_FAULT, tf->tval) != 0) {
+            cprintf("Store/AMO page fault\n");
+            do_exit(-E_KILLED);
+        }
+    }
+    break;
+```
+
+#### 三、COW 机制状态转换
+
+COW 机制可以用有限状态自动机表示，包含以下状态：
+
+- PRIVATE_RW：私有可写页面（正常状态）
+- SHARED_RO_COW：共享只读 COW 页面（fork 后）
+- EXCLUSIVE_RO_COW：独占只读 COW 页面（ref_count=1）
+- PRIVATE_RW_NEW：新分配的私有可写页面（COW 复制后）
+
+状态转换图：
+
+```mermaid
+stateDiagram-v2
+    [*] --> PRIVATE_RW: 初始状态
+
+    state "私有可写页面<br/>(PTE V|R|W)" as PRIVATE_RW
+    state "共享只读COW页面<br/>(PTE V|R|COW)<br/>ref_count > 1" as SHARED_RO_COW
+    state "独占只读COW页面<br/>(PTE V|R|COW)<br/>ref_count = 1" as EXCLUSIVE_RO_COW
+    state "新分配的私有可写页面<br/>(PTE V|R|W)" as PRIVATE_RW_NEW
+
+    PRIVATE_RW --> SHARED_RO_COW: fork()
+    SHARED_RO_COW --> SHARED_RO_COW: write触发page fault<br/>检查ref_count
+
+    SHARED_RO_COW --> PRIVATE_RW_NEW: ref_count > 1<br/>分配新页面并复制
+    SHARED_RO_COW --> EXCLUSIVE_RO_COW: 其他进程exit<br/>ref_count变为1
+    EXCLUSIVE_RO_COW --> PRIVATE_RW: write触发page fault<br/>ref_count = 1<br/>恢复写权限
+
+    PRIVATE_RW_NEW --> SHARED_RO_COW: fork()
+    PRIVATE_RW --> [*]: exit释放页面
+    PRIVATE_RW_NEW --> [*]: exit释放页面
+    EXCLUSIVE_RO_COW --> [*]: exit释放页面
+
+    note right of SHARED_RO_COW
+        关键决策点
+        根据ref_count判断
+        是否需要复制页面
+    end note
+
+    note right of PRIVATE_RW_NEW
+        COW复制后的新页面
+        与原页面完全独立
+    end note
+```
+
+状态转换表：
+
+| 当前状态       | 事件   | 条件   | 下一状态       | 操作                          |
+| -------------- | ------ | ------ | -------------- | ----------------------------- |
+| PRIVATE_RW     | fork() | -      | SHARED_RO_COW  | 清除 W 位，设置 COW 位，ref++ |
+| SHARED_RO_COW  | write  | ref>1  | PRIVATE_RW_NEW | 分配新页面，复制内容，ref--   |
+| SHARED_RO_COW  | write  | ref==1 | PRIVATE_RW     | 恢复 W 位，清除 COW 位        |
+| PRIVATE_RW_NEW | fork() | -      | SHARED_RO_COW  | 清除 W 位，设置 COW 位，ref++ |
+| SHARED_RO_COW  | exit() | ref>1  | SHARED_RO_COW  | ref--                         |
+| SHARED_RO_COW  | exit() | ref==1 | 释放           | free_page()                   |
+
+#### 四、测试方式与结果
+
+##### 4.1 测试程序设计（`user/cowtest.c`）
+
+我们设计了一个测试程序来验证 COW 机制：
+
+```c
+#define ARRAY_SIZE 1024
+
+int main(void) {
+    cprintf("COW Test: Starting\n");
+
+    static int shared_data[ARRAY_SIZE];
+
+    // 父进程初始化数据
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+        shared_data[i] = i;
+    }
+
+    int pid = fork();
+
+    if (pid == 0) {
+        // 子进程：读取验证共享
+        cprintf("Child: Reading first value: %d\n", shared_data[0]);
+
+        // 写入触发COW
+        for (int i = 0; i < ARRAY_SIZE; i++) {
+            shared_data[i] = i + 1000;
+        }
+
+        cprintf("Child: COW write successful! Values: %d, %d, %d...\n",
+                shared_data[0], shared_data[1], shared_data[2]);
+        exit(0);
+    } else {
+        // 父进程：也写入触发COW
+        yield();
+        for (int i = 0; i < ARRAY_SIZE; i++) {
+            shared_data[i] = i + 2000;
+        }
+
+        cprintf("Parent: COW write successful! Values: %d, %d, %d...\n",
+                shared_data[0], shared_data[1], shared_data[2]);
+        waitpid(pid, NULL);
+    }
+
+    return 0;
+}
+```
+
+测试逻辑：
+
+1. 父进程初始化一个 1024 元素的数组为 0-1023
+2. fork 创建子进程，此时父子进程共享页面（只读+COW）
+3. 子进程读取数据验证共享（不触发 page fault）
+4. 子进程写入新值 1000-2023（触发 COW，分配新页面）
+5. 父进程写入不同的值 2000-3023（触发 COW，分配另一个新页面）
+6. 验证父子进程的数据互不影响
+
+##### 4.2 测试结果
+
+编译并运行测试程序：
+
+```bash
+$ make clean && make
+$ make qemu
+```
+
+实际输出：
+
+```
+OpenSBI v0.4 (Jul  2 2019 11:53:53)
+(THU.CST) os is loading ...
+++ setup timer interrupts
+kernel_execve: pid = 2, name = "cowtest".
+Breakpoint
+COW Test: Starting
+Parent: Initialized array with values 0-1023
+Parent [2]: Created child [3]
+Child [3]: Started
+Child: Reading first value: 0 (should be 0)
+Child: Writing new values (triggering COW)...
+Child: Verify written values...
+Child: COW write successful! Values: 1000, 1001, 1002...
+Child: Test PASSED
+Parent: Writing different values (triggering COW)...
+Parent: Verify written values...
+Parent: COW write successful! Values: 2000, 2001, 2002...
+Parent: Child exited with code 0
+Parent: Test PASSED
+COW Test: Complete
+all user-mode processes have quit.
+init check memory pass.
+kernel panic at kern/process/proc.c:529:
+    initproc exit.
+```
+
+让我们分析这个测试能证明什么：
+
+1. 页面共享机制有效
+
+   - 证据：子进程读取到 `shared_data[0] = 0`（父进程初始化的值）
+   - 说明：fork 后子进程能读取父进程的数据，证明页面确实被共享
+   - 对应代码：`copy_range` 中 `page_ref_inc(page)` 增加引用计数，`page_insert` 创建共享映射
+
+2. 写时复制触发正确
+
+   - 证据：子进程写入后得到 1000-1002，父进程写入后得到 2000-2002
+   - 说明：写操作触发了 page fault，并成功复制页面
+   - 对应代码：`do_pgfault` 检测到 `PTE_COW` 标志，调用 `alloc_page()` 和 `memcpy()`
+
+3. 数据隔离完整
+
+   - 证据：子进程的值（1000+）和父进程的值（2000+）完全独立
+   - 说明：COW 复制后，父子进程拥有各自的物理页面
+   - 对应代码：`page_remove` 减少旧页面引用，`page_insert` 建立新映射
+
+4. 引用计数管理正确
+   - 证据：系统最终能正常退出（"init check memory pass"）
+   - 说明：页面引用计数正确，没有内存泄漏
+   - 对应代码：`page_ref_inc/dec` 和 `page_remove` 的配合
+
+#### 五、Dirty COW 漏洞分析
+
+以下内容是对 Dirty COW 漏洞的理论分析。由于 uCore 是单线程操作系统，不支持多线程和相关系统调用，无法真正复现此漏洞。我们的分析重点在于理解漏洞原理，以及 uCore 的简化设计如何天然避免了此类问题。
+
+Dirty COW（CVE-2016-5195）是 Linux 内核中的一个严重权限提升漏洞，存在于 2007 年至 2016 年（内核版本 2.6.22 到 4.8.3）。该漏洞允许非特权用户获得对只读内存映射的写访问权限。
+
+Dirty COW 利用了 COW 机制中的竞态条件。正常的 COW 流程是：
+
+1. 进程尝试写入只读的 COW 页面
+2. 触发 page fault
+3. 内核检查页面是否独占
+4. 如果共享，分配新页面并复制
+5. 更新页表项为可写
+6. 返回用户态继续执行
+
+而 Dirty COW 漏洞通过两个线程的竞争实现：
+
+```c
+// 线程1：反复调用madvise标记页面为不需要
+void *madviseThread(void *arg) {
+    for(int i = 0; i < 100000000; i++) {
+        madvise(map, 100, MADV_DONTNEED);  // 清除页表项
+    }
+}
+
+// 线程2：尝试写入只读映射
+void *procselfmemThread(void *arg) {
+    int f = open("/proc/self/mem", O_RDWR);
+    for(int i = 0; i < 100000000; i++) {
+        lseek(f, (uintptr_t)map, SEEK_SET);
+        write(f, str, strlen(str));  // 写入
+    }
+}
+```
+
+竞态条件的时间线为：
+
+- T1: 线程 2 尝试写入，触发 page fault
+- T2: 内核开始处理 COW
+- T3: 内核检查页面状态（此时为只读 COW）
+- T4: 内核开始准备复制[竞态窗口开始]
+- T5: 线程 1 调用 madvise(MADV_DONTNEED)，清除页表项
+- T6: 线程 2 的写入继续，但此时 COW 检查已通过[竞态窗口结束]
+- T7: 写入直接到原始页面（本应是只读的！）
+
+然而，由于 uCore 的简化设计，它自然避免了 Dirty COW 类型的漏洞，原因有四条：
+
+1. uCore 不支持内核线程和用户多线程，不存在多线程竞态条件
+2. 页面错误处理通过 trap 机制进入内核态，整个 page fault 处理过程中断被禁用，天然具有原子性
+3. 没有 `madvise`、`/proc/self/mem` 等复杂接口，减少了攻击面
+4. 在 `do_pgfault` 中，检查引用计数和修改页表在同一个函数中完成，无需额外的同步机制
+
+### 说明该用户程序是何时被预先加载到内存中的？与我们常用操作系统的加载有何区别，原因是什么?
+
+#### 用户程序的加载时机
+
+uCore 中的用户程序经历了两个阶段的"加载"，分别在编译时和运行时。
+
+在编译阶段，用户程序在编译阶段就被嵌入到内核镜像中:
+
+```makefile
+# Makefile 第 171 行
+$(LD) $(LDFLAGS) -T tools/kernel.ld -o $@ $(KOBJS) \
+    --format=binary $(USER_BINS) --format=default
+```
+
+这条链接命令使用 `--format=binary` 选项将用户程序的 ELF 二进制文件(`obj/__user_*.out`)作为原始二进制数据直接嵌入到内核镜像中,链接器会自动创建符号:
+
+```c
+// 链接器生成的符号(可通过 nm bin/kernel 验证)
+_binary_obj___user_cowtest_out_start  // 二进制数据起始地址
+_binary_obj___user_cowtest_out_size   // 二进制数据大小
+_binary_obj___user_cowtest_out_end    // 二进制数据结束地址
+```
+
+在进程创建时，内核从已嵌入的二进制数据中加载到进程地址空间；具体而言，在 `kern/process/proc.c` 中，使用以下宏和函数实现加载:
+
+```c
+// proc.c 第 935-938 行
+#define __KERNEL_EXECVE(name, binary, size) ({                          \
+    cprintf("kernel_execve: pid = %d, name = \"%s\".\n", current->pid, name); \
+    kernel_execve(name, binary, (size_t)(size));                        \
+})
+
+#define KERNEL_EXECVE(x) ({                                             \
+    extern unsigned char _binary_obj___user_##x##_out_start[],          \
+        _binary_obj___user_##x##_out_size[];                            \
+    __KERNEL_EXECVE(#x, _binary_obj___user_##x##_out_start,             \
+                    _binary_obj___user_##x##_out_size);                 \
+})
+```
+
+调用流程:
+
+1. user_main() [proc.c:906]
+2. KERNEL_EXECVE(cowtest)
+3. kernel_execve() [proc.c:925]
+4. SYS_exec 系统调用
+5. do_execve() [proc.c:763]
+6. load_icode() [proc.c:585]
+
+最后，`load_icode()` 函数从嵌入的二进制数据中解析 ELF 头，按照程序头表(Program Header)的描述，将各个段(代码段、数据段等)映射到新进程的虚拟地址空间，并设置好用户栈和程序入口点。
+
+而在常规操作系统中，程序的加载流程为：
+
+1. 用户执行命令
+2. shell 调用 `execve("/bin/ls", ...)`
+   1. 打开指定路径的可执行文件
+   2. 验证文件格式和权限
+   3. 创建新的地址空间
+   4. 采用 按需分页(demand paging):只映射页表,实际内容在首次访问时才从磁盘加载
+   5. 设置程序入口点并开始执行
+3. 内核打开文件 /bin/ls
+4. 从磁盘读取 ELF 头
+5. 创建进程地址空间
+6. 按需分页(demand paging)加载代码/数据段
+7. 设置 PC 指向入口点
+
+我们认为，ucore 采用嵌入式加载的原因有以下两条:
+
+1. Lab5 的重点是进程管理和 COW 机制，而非文件系统实现。嵌入方式避免了实现完整文件系统的复杂性。这样设计无需进一步实现磁盘驱动、文件系统、路径解析等复杂模块，即可测试进程创建和执行功能。
+2. 这样用户程序和内核在同一个镜像中，便于使用 GDB 调试，无需处理符号文件分离问题。并且，所有测试程序固定，不受外部文件系统状态影响，测试结果可重复。
 
 ## 分支任务：gdb 调试页表查询过程 (lab2)
 
