@@ -19,9 +19,128 @@
 
 ## 练习 0：填写已有实验
 
+本练习要求将 Lab4 的代码合并到 Lab5 中。Lab4 实现了内核线程的创建、调度和同步机制，Lab5 在此基础上增加了用户进程的支持，包括用户态和内核态的切换、系统调用机制、以及进程的 fork/exec/wait/exit 等功能。
+
+合并过程中需要注意进程管理相关的数据结构和函数。在`alloc_proc()`函数中（`kern/process/proc.c:90-130`），Lab5 相比 Lab4 新增了几个字段的初始化：
+
+```c
+proc->mm = NULL;                    // 用户内存管理结构
+proc->tf = NULL;                    // 陷阱帧
+proc->pgdir = boot_pgdir_pa;        // 页目录基地址（物理地址）
+proc->wait_state = 0;               // 等待状态
+proc->cptr = proc->yptr = proc->optr = NULL;  // 进程关系指针
+```
+
+这里有个细节要注意，`proc->pgdir`要初始化为`boot_pgdir_pa`而不是`boot_pgdir`。因为 RISC-V 的`satp`寄存器需要物理地址，如果填入虚拟地址会导致页表切换出错。
+
+进程调度部分的代码基本保持不变，`proc_run()`函数仍然负责进程切换。不过在切换到用户进程时，页表的切换变得很重要。`lsatp()`函数加载新进程的页目录基地址，让进程拥有独立的虚拟地址空间。
+
+Lab5 还引入了完整的系统调用框架。当用户进程执行`ecall`指令时，CPU 会陷入内核态，由`trap.c`中的异常处理程序接管。系统调用号和参数通过寄存器传递，内核根据系统调用号分发到具体的处理函数，执行完毕后将返回值写入`a0`寄存器，最终通过`sret`指令返回用户态。
+
 ## 练习 1: 加载应用程序并执行（需要编码）
 
+本练习的任务是实现`load_icode()`函数，这个函数负责将用户程序的 ELF 格式二进制文件加载到新创建进程的用户空间中。Lab5 中用户程序在编译时就被嵌入到内核镜像里了。Makefile 通过链接器的`--format=binary`选项将编译好的用户程序 ELF 文件作为原始二进制数据链接进内核，链接器会自动生成三个符号，分别指向二进制数据的起始地址、大小和结束地址。
+
+### do_fork() 的实现
+
+进程创建流程在`do_fork()`函数中完成（`kern/process/proc.c:437-520`）。这次实验中我们需要修改两个地方：
+
+**修改点 1：设置父进程关系**（第 468-470 行）
+
+```c
+// update step 1: set child proc's parent to current process, make sure current process's wait_state is 0
+proc->parent = current;          // 设置父进程为当前进程
+current->wait_state = 0;         // 确保当前进程的等待状态为0
+```
+
+这里将子进程的`parent`指针指向当前进程，并将当前进程的`wait_state`设为 0，表示当前进程不在等待子进程。
+
+**修改点 2：插入进程到哈希表**（第 483-485 行）
+
+```c
+// update step 5: insert proc_struct into hash_list && proc_list, set the relation links of process
+// 使用 set_links 函数设置进程关系，替代原来的直接添加到链表
+set_links(proc);
+```
+
+调用`set_links()`函数。在`set_links()`内部（第 160-170 行）：
+
+```c
+static void
+set_links(struct proc_struct *proc)
+{
+    list_add(&proc_list, &(proc->list_link));
+    proc->yptr = NULL;
+    if ((proc->optr = proc->parent->cptr) != NULL) {
+        proc->optr->yptr = proc;
+    }
+    proc->parent->cptr = proc;
+    nr_process++;
+    hash_proc(proc);  // 将进程加入 hash_list，使 find_proc 能找到它
+}
+```
+
+这个函数不仅建立了进程的父子关系和兄弟关系，还调用了`hash_proc(proc)`将进程加入哈希表。这个调用很重要，如果缺少这行，`find_proc()`就找不到新创建的进程，导致`wait()`等系统调用失败。
+
+### 时钟中断处理
+
+在`trap.c`的时钟中断处理中（第 127-136 行），我们添加了进程调度的触发机制：
+
+```c
+clock_set_next_event();
+if (++ticks % TICK_NUM == 0) {
+    print_ticks();
+    if (current) {
+        current->need_resched = 1;  // 标记当前进程需要重新调度
+    }
+    // ...
+}
+```
+
+每隔`TICK_NUM`个时钟中断，就将当前进程的`need_resched`标志设为 1。这样在中断返回前，系统会检查这个标志，如果为 1 就调用`schedule()`切换到其他进程。这实现了时间片轮转的抢占式调度。
+
 ## 练习 2: 父进程复制自己的内存空间给子进程（需要编码）
+
+本练习要实现`copy_range()`函数中的页面复制逻辑。当父进程调用`fork()`创建子进程时，子进程需要获得父进程地址空间的完整副本。也就是要将父进程的每一个有效页面都复制一份给子进程，并在子进程的页表中建立相应的映射。
+
+### copy_range() 的实现
+
+在`pmm.c`的`copy_range()`函数中（第 426-460 行），我们需要填写页面复制的代码。这个函数以页为单位遍历指定的虚拟地址范围，对于每个有效的页表项，执行复制操作。
+
+```c
+// get page from ptep
+struct Page *page = pte2page(*ptep);
+
+// 原始实现：分配新页面并复制
+struct Page *npage = alloc_page();
+assert(page != NULL);
+assert(npage != NULL);
+
+/* LAB5:EXERCISE2 YOUR CODE */
+// (1) 获取源页面的内核虚拟地址（从Page结构体转换而来）。page是通过`pte2page(*ptep)`从页表项得到的，代表父进程的物理页面。
+void *src_kvaddr = page2kva(page);
+// (2) 获取目标页面的内核虚拟地址。npage是通过alloc_page()刚刚分配的空闲页面。
+void *dst_kvaddr = page2kva(npage);
+// (3) 从源地址复制到目标地址，大小为 PGSIZE。将整个页面（4096 字节）的数据从父进程页面复制到子进程页面。这是真正的数据复制操作。
+memcpy(dst_kvaddr, src_kvaddr, PGSIZE);
+// (4) 在子进程的页表中建立虚拟地址start到物理页面npage的映射，使用与父进程相同的权限位perm。
+ret = page_insert(to, npage, start, perm);
+```
+
+### page_insert() 的作用
+
+`page_insert()`函数不仅仅是修改页表项，它还会：
+
+1. 检查目标虚拟地址是否已存在映射，如果存在则先移除旧映射
+2. 增加新页面的引用计数（`page->ref++`）
+3. 将新的映射关系写入页表
+4. 刷新 TLB 保持地址转换的一致性
+
+引用计数机制很重要，它记录了有多少个页表项指向同一个物理页面。当引用计数降为 0 时，物理页面才能被安全回收。
+
+### 性能问题
+
+这种页面复制方式虽然直接有效，但也存在效率问题。如果父进程占用了大量内存，`fork()`调用会消耗相当长的时间来复制所有页面。更严重的是，子进程可能在执行`exec()`替换自己的地址空间之前，根本不会访问这些复制的页面，导致复制操作完全是浪费。这个问题促使了写时复制(Copy-on-Write)机制的出现，这也是扩展练习中实现的优化技术。
 
 ## 练习 3: 阅读分析源代码，理解进程执行 fork/exec/wait/exit 的实现，以及系统调用的实现（不需要编码）
 
