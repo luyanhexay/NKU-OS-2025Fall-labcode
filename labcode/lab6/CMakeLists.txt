@@ -112,6 +112,7 @@ add_executable(lab6
 	        user/matrix.c
 	        user/pgdir.c
 	        user/priority.c
+	        user/schedbench.c
 	        user/softint.c
         user/spin.c
         user/testbss.c
