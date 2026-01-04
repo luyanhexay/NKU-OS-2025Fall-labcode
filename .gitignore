@@ -4,7 +4,8 @@ build/
 enviroment/
 .enviroment/
 **/obj/
-# **/bin/
+**/bin/
+**/disk0/
 
 **/kernel
 **/ucore.img
