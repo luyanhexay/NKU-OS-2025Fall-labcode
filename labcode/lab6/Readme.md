@@ -1,4 +1,4 @@
-<h1 align="center"> 南开大学操作系统实验八 </h1>
+<h1 align="center"> 南开大学操作系统实验六 </h1>
 <p align="center">
 <a href="https://cc.nankai.edu.cn/"><img src="https://img.shields.io/badge/NKU-CS-07679f"></a>
 <a href="http://oslab.mobisys.cc/"><img src="https://img.shields.io/badge/NKU-OS-86006a"></a>
@@ -30,3 +30,9 @@
 - [章壹程](https://github.com/u2003yuge)：None
 - [仇科文](https://github.com/luyanhexay)：Challenge 1，Challenge 2
 - [杨宇翔](https://github.com/sheepspacefly)：练习 0，练习 1，练习 2
+
+## Notes
+
+- `make grade` 跑的是 `priority`（见 `labcode/lab6/tools/grade.sh`），默认期望调度器为 RR（`sched class: RR_scheduler`）。
+- 要让 `priority` 正常退出，至少需要：时钟中断里 `ticks++` + 调用 `sched_class_proc_tick`（`labcode/lab6/kern/trap/trap.c`），以及 `fork` 路径可用（`copy_range`/`alloc_proc`/`do_fork` 等）。
+- 本机环境缺少 `riscv64-unknown-elf-gdb` 时，`labcode/lab6/tools/grade.sh` 会使用“等待关键输出后杀 QEMU”的 fallback 逻辑。
