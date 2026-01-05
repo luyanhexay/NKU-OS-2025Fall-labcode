@@ -125,7 +125,9 @@ run_qemu() {
     # Run qemu with serial output redirected to $qemu_out. If $brkfun is non-empty,
     # wait until $brkfun is reached or $timeout expires, then kill QEMU
     qemuextra=
-    if [ "$brkfun" ]; then
+    usegdb=false
+    if [ "$brkfun" ] && command -v "$gdb" > /dev/null 2>&1; then
+        usegdb=true
         qemuextra="-S $qemugdb"
     fi
 
@@ -134,6 +136,9 @@ run_qemu() {
     fi
 
     t0=$(get_time)
+    rm -f "$qemu_out"
+    : > "$qemu_out"
+
     (
         ulimit -t $timeout
         exec $qemu -nographic $qemuopts -serial file:$qemu_out -monitor null -no-reboot $qemuextra
@@ -143,7 +148,7 @@ run_qemu() {
     # wait for QEMU to start
     sleep 1
 
-    if [ -n "$brkfun" ]; then
+    if $usegdb; then
         # find the address of the kernel $brkfun function
         brkaddr=`$grep " $brkfun\$" $sym_table | $sed -e's/ .*$//g'`
         brkaddr_phys=`echo $brkaddr | sed "s/^c0/00/g"`
@@ -161,7 +166,23 @@ run_qemu() {
         # make sure that QEMU is dead
         # on OS X, exiting gdb doesn't always exit qemu
         kill $pid > /dev/null 2>&1
+    else
+        # Fallback mode when the cross gdb is unavailable: wait for the test to finish (or timeout),
+        # then kill QEMU to finalize the output file.
+        i=0
+        while [ $i -lt $timeout ]; do
+            if $grep -q 'init check memory pass.' "$qemu_out" 2> /dev/null; then
+                break
+            fi
+            if $grep -q 'user panic at ' "$qemu_out" 2> /dev/null; then
+                break
+            fi
+            sleep 1
+            i=`expr $i + 1`
+        done
+        kill $pid > /dev/null 2>&1
     fi
+    wait $pid > /dev/null 2>&1
 }
 
 build_run() {
