@@ -52,7 +52,21 @@ void sched_init(void)
 {
     list_init(&timer_list);
 
+#ifndef SCHED_POLICY
+#define SCHED_POLICY 1
+#endif
+
+#if SCHED_POLICY == 0
     sched_class = &default_sched_class;
+#elif SCHED_POLICY == 1
+    sched_class = &stride_sched_class;
+#elif SCHED_POLICY == 2
+    sched_class = &sjf_sched_class;
+#elif SCHED_POLICY == 3
+    sched_class = &lottery_sched_class;
+#else
+    sched_class = &stride_sched_class;
+#endif
 
     rq = &__rq;
     rq->max_time_slice = MAX_TIME_SLICE;

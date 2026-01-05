@@ -60,12 +60,15 @@ add_executable(lab6
         kern/mm/swap_fifo.h
         kern/mm/vmm.c
         kern/mm/vmm.h
-        kern/process/proc.c
-        kern/process/proc.h
-        kern/schedule/default_sched.h
-        kern/schedule/default_sched_stride.c
-        kern/schedule/sched.c
-        kern/schedule/sched.h
+	        kern/process/proc.c
+	        kern/process/proc.h
+	        kern/schedule/default_sched.h
+	        kern/schedule/default_sched.c
+	        kern/schedule/default_sched_stride.c
+	        kern/schedule/default_sched_sjf.c
+	        kern/schedule/default_sched_lottery.c
+	        kern/schedule/sched.c
+	        kern/schedule/sched.h
         kern/sync/sync.h
         kern/syscall/syscall.c
         kern/syscall/syscall.h
@@ -106,10 +109,11 @@ add_executable(lab6
         user/forktest.c
         user/forktree.c
         user/hello.c
-        user/matrix.c
-        user/pgdir.c
-        user/priority.c
-        user/softint.c
+	        user/matrix.c
+	        user/pgdir.c
+	        user/priority.c
+	        user/schedbench.c
+	        user/softint.c
         user/spin.c
         user/testbss.c
         user/waitkill.c
