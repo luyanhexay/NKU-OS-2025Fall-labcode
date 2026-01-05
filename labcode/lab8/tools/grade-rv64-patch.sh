@@ -42,6 +42,11 @@ gdbport='1234'
 
 gdb_in="$(make_print GRADE_GDB_IN)"
 
+have_gdb=yes
+if ! command -v "$gdb" > /dev/null 2>&1; then
+    have_gdb=no
+fi
+
 ## qemu & qemuopts
 qemu="$(make_print qemu)"
 
@@ -127,7 +132,7 @@ run_qemu() {
     # Run qemu with serial output redirected to $qemu_out. If $brkfun is non-empty,
     # wait until $brkfun is reached or $timeout expires, then kill QEMU
     qemuextra=
-    if [ "$brkfun" ]; then
+    if [ "$brkfun" ] && [ "$have_gdb" = "yes" ]; then
         qemuextra="-S $qemugdb"
     fi
 
@@ -145,7 +150,7 @@ run_qemu() {
     # wait for QEMU to start
     sleep 1
 
-    if [ -n "$brkfun" ]; then
+    if [ -n "$brkfun" ] && [ "$have_gdb" = "yes" ]; then
         # find the address of the kernel $brkfun function
         brkaddr=`$grep " $brkfun\$" $sym_table | $sed -e's/ .*$//g'`
         brkaddr_phys=`echo $brkaddr | sed "s/^c0/00/g"`
@@ -162,6 +167,18 @@ run_qemu() {
 
         # make sure that QEMU is dead
         # on OS X, exiting gdb doesn't always exit qemu
+        kill $pid > /dev/null 2>&1
+    else
+        # Without a working cross-gdb, just let QEMU run for a while so that
+        # $qemu_out gets populated, then terminate it.
+        i=0
+        while [ $i -lt $timeout ]; do
+            if [ -s "$qemu_out" ] && $grep -F 'user sh is running!!!' "$qemu_out" > /dev/null 2>&1; then
+                break
+            fi
+            sleep 1
+            i=`expr $i + 1`
+        done
         kill $pid > /dev/null 2>&1
     fi
 }

@@ -21,38 +21,119 @@
 
 ## 扩展练习 Challenge1：完成基于“UNIX 的 PIPE 机制”的设计方案
 
-本 Challenge 要求给出在 ucore 中加入 UNIX Pipe 的概要设计。我们认为 Pipe 的核心在于“以文件描述符为统一入口的字节流通信”，因此设计应当同时覆盖内存中的管道对象、文件/文件描述符层的抽象，以及在读写阻塞与关闭语义下的同步互斥处理。
+### 1. 数据结构设计
 
-在数据结构层面，我们建议将 Pipe 抽象为一个带环形缓冲区的内核对象，并维护读端/写端引用计数与等待队列，从而支持阻塞读写与 EOF/断管语义。一个可行的结构定义如下：
+在 ucore 的 VFS 框架下，管道可以被视为一种特殊的“伪文件系统”或特殊的 `inode` 类型。
 
-```c
-#define PIPE_BUFSIZE 4096
+- 扩展 `inode` 结构：
+  在 `kern/fs/vfs/inode.h` 中，需要在 `inode` 的 `in_info` 联合体中增加管道特定的信息，并定义新的 `inode` 类型：
 
-typedef struct pipe {
-    semaphore_t sem;          // 保护缓冲区与元数据
-    char buf[PIPE_BUFSIZE];
-    size_t rpos, wpos;        // 环形下标
-    size_t used;              // 当前已使用字节数
-    int readers, writers;     // 打开读端/写端的引用数
-    wait_queue_t rwait;       // 缓冲区为空时的读者等待队列
-    wait_queue_t wwait;       // 缓冲区满时的写者等待队列
-} pipe_t;
-```
+  ```c
+  // kern/fs/vfs/inode.h
+  struct inode {
+      union {
+          struct device __device_info;
+          struct sfs_inode __sfs_inode_info;
+          struct pipe_inode __pipe_info; // 新增：管道特定信息
+      } in_info;
+      enum {
+          inode_type_device_info = 0x1234,
+          inode_type_sfs_inode_info,
+          inode_type_pipe_info,          // 新增：管道类型
+      } in_type;
+      // ... 其他字段 ...
+  };
+  ```
 
-在接口层面，我们建议提供与 UNIX 语义对齐的系统调用与文件操作接口。系统调用 `sys_pipe(int fd[2])` 返回一对文件描述符，其中 `fd[0]` 为读端、`fd[1]` 为写端；读端 `read` 在缓冲区为空且仍存在写者时应阻塞等待，而在缓冲区为空且写者数为 0 时应返回 0 表示 EOF；写端 `write` 在缓冲区满且仍存在读者时应阻塞等待，而在读者数为 0 时应返回错误（例如 `-E_PIPE`）以表达“断管”。在 `close` 上，我们需要维护 `readers/writers` 计数，并在计数归零时唤醒对端等待队列以推动其从阻塞态返回或退出。
+- 定义 `pipe_inode` 结构：
+  ```c
+  struct pipe_inode {
+      char *buffer;               // 指向内核分配的缓冲区（通常为 1 页）
+      size_t head;                // 读偏移
+      size_t tail;                // 写偏移
+      bool is_full;               // 缓冲区是否已满
+      int readers;                // 读者引用计数
+      int writers;                // 写者引用计数
+      semaphore_t mutex_sem;      // 保护管道元数据的互斥信号量
+      semaphore_t read_sem;       // 用于同步读者的信号量（生产者-消费者）
+      semaphore_t write_sem;      // 用于同步写者的信号量
+  };
+  ```
 
-在实现落点上，我们倾向于将 Pipe 作为一种“特殊文件”挂接到现有的文件描述符框架中，即通过 `struct file` 的 `file_ops` 为 Pipe 提供 `read/write/close` 的实现，这样可以复用 `dup/fork/exec` 中已经存在的文件描述符复制与引用计数机制。同步互斥方面，我们采用“一个保护管道元数据的锁 + 两个条件等待队列”的策略：任何对环形缓冲区与计数器的修改都需要在临界区内完成；当读写无法继续时，进程进入对应等待队列并睡眠；当对端推进了缓冲区状态（写入或读出）或关闭导致语义变化时，唤醒等待队列以重新检查条件。我们认为这样可以在保持语义正确的同时，将死锁风险限制在清晰的锁粒度与唤醒点上。
+### 2. 接口设计与语义
+
+- `int sys_pipe(int fd_store[2])`:
+
+  - 语义：创建一个管道，返回两个文件描述符。
+  - 实现：
+    1. 调用 `alloc_inode(pipe)` 创建一个新的管道 `inode`。
+    2. 初始化 `pipe_inode` 中的缓冲区和信号量。
+    3. 调用 `fd_array_alloc` 两次，获取两个空闲的 `file` 结构。
+    4. 设置 `file[0]` 为只读，`file[1]` 为只写，且它们的 `node` 都指向同一个管道 `inode`。
+    5. 将 `fd` 返回给用户态。
+
+- `vop_read` (管道实现):
+
+  - 语义：从管道缓冲区读取数据。
+  - 行为：如果缓冲区为空且 `writers > 0`，则在 `read_sem` 上等待；如果 `writers == 0` 且缓冲区为空，返回 0 (EOF)。读取后通过 `write_sem` 唤醒写者。
+
+- `vop_write` (管道实现):
+  - 语义：向管道缓冲区写入数据。
+  - 行为：如果缓冲区已满且 `readers > 0`，则在 `write_sem` 上等待；如果 `readers == 0`，则返回错误（如 `EPIPE`）。写入后通过 `read_sem` 唤醒读者。
+
+### 3. 概要设计方案与同步互斥处理
+
+- 同步机制：利用 ucore 已有的 `semaphore_t`。
+  - `mutex_sem` 确保对 `head`、`tail`、`readers` 等字段的原子访问。
+  - `read_sem` 和 `write_sem` 实现阻塞 I/O。当读者发现无数据可读时，调用 `down(&read_sem)` 进入等待；当写者写入数据后，调用 `up(&read_sem)`。
+- 生命周期：当 `vfs_close` 被调用时，减少 `readers` 或 `writers`。当两者皆为 0 时，`vop_reclaim` 会被触发，释放缓冲区和 `inode`。
 
 ## 扩展练习 Challenge2：完成基于“UNIX 的软连接和硬连接机制”的设计方案
 
-本 Challenge 要求给出在 ucore 中加入软链接与硬链接机制的概要设计。我们认为硬链接的本质是“目录项到 inode 的多重命名”，而软链接的本质是“目录项到一个保存目标路径字符串的特殊 inode”。因此设计应当分别覆盖 inode 元数据（例如 link count）、目录项操作（link/unlink）、路径解析时的链接跟随规则，以及并发下的一致性维护。
+### 1. 数据结构设计
 
-在硬链接设计中，我们建议将 `link` 抽象为一次“在目标目录中新增一个目录项，并让其 inode 号指向已有 inode”的原子操作。对应的接口可以是 `sys_link(const char *oldpath, const char *newpath)`，其语义为：解析 `oldpath` 得到 inode A；解析 `newpath` 得到目标父目录与新文件名；在父目录中创建新目录项指向 inode A，并将 inode A 的 `nlinks++` 持久化。与之对称，`sys_unlink(const char *path)` 的语义为：在父目录中删除目录项并令目标 inode 的 `nlinks--`；当 `nlinks` 下降到 0 且没有被打开的引用时，回收 inode 与数据块。为保证一致性，我们需要在目录与 inode 上进行互斥，至少确保“目录项修改”与“nlinks 修改”在同一临界区内完成，并在崩溃恢复层面满足“要么两者都生效，要么都不生效”的基本要求（可通过日志或写回顺序约束近似实现）。
+ucore 的 SFS 磁盘格式已经为链接机制预留了部分字段。
 
-在软链接设计中，我们建议引入两个系统调用：`sys_symlink(const char *target, const char *linkpath)` 用于创建软链接文件，其语义为在 `linkpath` 处创建一个类型为 `S_IFLNK` 的 inode，并将 `target` 字符串写入该 inode 的数据区；`sys_readlink(const char *path, char *buf, size_t buflen)` 用于读取软链接的目标路径字符串。路径解析方面，我们建议在 VFS 的 namei/lookup 过程中识别软链接 inode：当解析到软链接且不是最终分量、或最终分量在未设置 `O_NOFOLLOW` 时，应读取其目标路径并继续解析；为避免循环链接导致无限解析，需要限制最大跟随次数（例如 8 或 16），超出后返回 `-E_LOOP`。并发方面，软链接本身的数据区读写应受 inode 锁保护，而路径解析过程中涉及的父目录锁与目标 inode 锁需要遵循固定顺序以避免死锁。
+- 硬链接 (Hard Link)：
 
-从数据结构角度看，硬链接需要 inode 上的 `nlinks` 字段以及目录项到 inode 的映射；软链接需要 inode 的“类型”字段与存储目标路径的内容区。在 SFS 上，一个可行的磁盘 inode 定义可以包含 `type` 与 `nlinks`，并将软链接目标作为普通文件内容存放；同时目录项仍然只记录 inode 号与名称，从而保持目录结构与文件内容存储的统一抽象。
+  - 磁盘结构：`sfs_disk_inode` 中已有的 `nlinks` 字段用于记录引用计数。
+  - 原理：多个 `sfs_disk_entry`（目录项）指向同一个 `ino`（inode 编号）。
+
+- 软链接 (Symbolic Link)：
+  - 磁盘结构：使用 `SFS_TYPE_LINK` 类型。
+  - 内容：该 `inode` 指向的数据块中存储的是目标文件的路径字符串。
+  - VFS 扩展：需要在 `struct inode_ops` 中增加 `vop_link`、`vop_symlink` 和 `vop_readlink` 函数指针。
+
+### 2. 接口设计与语义
+
+- `int vfs_link(char *old_path, char *new_path)`:
+
+  - 语义：创建硬链接。
+  - 实现：通过 `vfs_lookup` 找到 `old_path` 的 `inode`，通过 `vfs_lookup_parent` 找到 `new_path` 的父目录。在父目录下创建新条目指向 `old_inode`，并增加 `old_inode->nlinks`。
+
+- `int vfs_symlink(char *target, char *link_path)`:
+
+  - 语义：创建软链接。
+  - 实现：创建一个新的 `SFS_TYPE_LINK` 类型的 `inode`，将 `target` 字符串写入其数据块。
+
+- `int vfs_readlink(char *path, struct iobuf *iob)`:
+  - 语义：读取软链接指向的路径内容。
+
+### 3. 概要设计方案与同步互斥处理
+
+- 路径解析的修改：
+
+  - 修改 `kern/fs/vfs/vfslookup.c` 中的 `vfs_lookup`。
+  - 当 `vop_lookup` 返回的 `inode` 类型为 `SFS_TYPE_LINK` 时，系统应调用 `vop_readlink` 获取目标路径。
+  - 递归处理：使用循环重新开始解析新路径。为了防止死循环（如 `A -> B -> A`），必须引入 `MAX_SYMLINK_DEPTH`（如 8 次）限制。
+
+- 同步与互斥：
+
+  - SFS 级锁：在修改 `nlinks` 或创建目录项时，必须持有 `sfs_fs->mutex_sem`，确保磁盘元数据修改的原子性。
+  - 引用计数管理：硬链接的删除（`vfs_unlink`）只是减少 `nlinks`。只有当 `nlinks == 0` 且内存中的 `ref_count` 也为 0 时，才真正释放磁盘块。这保证了“即使文件被删除，已打开该文件的进程仍能继续访问”的 UNIX 语义。
+
+- 安全性限制：
+  - 硬链接不允许跨文件系统（因为 `inode` 编号仅在单一 FS 内唯一）。
+  - 禁止对目录创建硬链接，以避免文件系统出现环路，简化 `fsck` 和目录遍历逻辑。
 
 ## 分工
-
-在实验八中，我们主要负责扩展练习 Challenge 1 与 Challenge 2 的设计方案撰写，并在报告中强调了与 ucore 现有文件系统与文件描述符框架对齐的接口形式、以及在阻塞读写与目录项操作中可能出现的同步互斥问题及其处理策略。
