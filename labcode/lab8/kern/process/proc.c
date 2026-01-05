@@ -286,6 +286,7 @@ void proc_run(struct proc_struct *proc)
             current = proc;
             
             lsatp(next->pgdir);
+            flush_tlb();
             
             switch_to(&(prev->context), &(next->context));
         }
@@ -712,6 +713,7 @@ load_icode(int fd, int argc, char **kargv)
     }
 
     int ret = -E_NO_MEM;
+    
     struct mm_struct *mm;
     //(1) create a new mm for current process
     if ((mm = mm_create()) == NULL)
