@@ -189,6 +189,75 @@ while (start < endm) {
 
 为每个段的虚拟地址范围分配物理页，并将 ELF 文件中对应部分的内容（`p_filesz`）读取到这些页面中 。BSS 段全部初始化为 0。
 
+#### 5、设置用户态栈
+
+```c++
+vm_flags = VM_READ | VM_WRITE | VM_STACK;
+if ((ret = mm_map(mm, USTACKTOP - USTACKSIZE, USTACKSIZE, vm_flags, NULL)) != 0) {
+    goto bad_cleanup_mmap;
+}
+// 为栈分配物理页
+assert(pgdir_alloc_page(mm->pgdir, USTACKTOP - PGSIZE, PTE_USER) != NULL);
+// ... 类似分配多个栈页
+```
+
+在用户地址空间的顶部（`USTACKTOP - USTACKSIZE`）映射一块具有读写权限的区域作为用户栈，并预先分配几个物理页来支持栈操作 。
+
+#### 6、设置进程内存上下文
+
+```c++
+mm_count_inc(mm);
+current->mm = mm;
+current->pgdir = PADDR(mm->pgdir);
+lsatp(PADDR(mm->pgdir)); 
+```
+
+将新创建的 `mm_struct`设置为当前进程的内存管理结构，并把进程的页目录物理地址加载到页表基址寄存器，切换到此进程独立的虚拟地址空间 。
+
+#### 7、设置用户栈上的命令行参数
+
+```c++
+uintptr_t sp = USTACKTOP;
+// 将参数字符串逐个压入用户栈
+for (j = argc - 1; j >= 0; j--) {
+    size_t len = strlen(kargv[j]) + 1;
+    sp -= len;
+    copy_to_user(mm, (void *)sp, kargv[j], len);
+    uargv[j] = sp;
+}
+// 对齐栈指针，并压入argv数组和argc
+sp = ROUNDDOWN(sp, sizeof(uintptr_t));
+// 压入argv数组的终止符NULL
+sp -= sizeof(uintptr_t);
+copy_to_user(mm, (void *)sp, &zero, sizeof(uintptr_t));
+// 压入argv数组的地址
+for (j = argc - 1; j >= 0; j--) {
+    sp -= sizeof(uintptr_t);
+    copy_to_user(mm, (void *)sp, &uargv[j], sizeof(uintptr_t));
+}
+uintptr_t argv_user = sp;
+// 压入argc
+sp -= sizeof(uintptr_t);
+copy_to_user(mm, (void *)sp, &argc, sizeof(uintptr_t));
+```
+
+**从栈顶向低地址方向**依次压入参数字符串、字符串指针数组 (`argv`)、`argc`，使 `main` 函数能正确获取参数 。
+
+#### 8、设置用户态陷阱帧
+
+```c++
+struct trapframe *tf = current->tf;
+memset(tf, 0, sizeof(struct trapframe));
+tf->gpr.sp = sp;     
+tf->gpr.a0 = argc;     
+tf->gpr.a1 = argv_user;
+tf->epc = elf.e_entry; 
+tf->status = sstatus & ~(SSTATUS_SPP | SSTATUS_SPIE | SSTATUS_SIE);
+tf->status |= SSTATUS_SPIE; // 启用用户态中断
+```
+
+清空并重新设置当前进程的陷阱帧。
+
 
 
 ## 扩展练习 Challenge1：完成基于“UNIX 的 PIPE 机制”的设计方案
