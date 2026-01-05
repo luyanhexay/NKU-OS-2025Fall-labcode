@@ -11,7 +11,7 @@
   <a href="#练习 3: 阅读分析源代码，理解进程执行 fork/exec/wait/exit 的实现，以及系统调用的实现（不需要编码）">练习3</a>|
   <a href="#扩展练习 Challenge ">扩展练习|
 
-<a href="#分工">分工</a>
+`<a href="#分工">`分工`</a>`
 
 </p> -->
 
@@ -21,7 +21,7 @@
 
 本练习要求将 Lab4 的代码合并到 Lab5 中。Lab4 实现了内核线程的创建、调度和同步机制，Lab5 在此基础上增加了用户进程的支持，包括用户态和内核态的切换、系统调用机制、以及进程的 fork/exec/wait/exit 等功能。
 
-合并过程中需要注意进程管理相关的数据结构和函数。在`alloc_proc()`函数中（`kern/process/proc.c:90-130`），Lab5 相比 Lab4 新增了几个字段的初始化：
+合并过程中需要注意进程管理相关的数据结构和函数。在 `alloc_proc()`函数中（`kern/process/proc.c:90-130`），Lab5 相比 Lab4 新增了几个字段的初始化：
 
 ```c
 proc->mm = NULL;                    // 用户内存管理结构
@@ -31,19 +31,19 @@ proc->wait_state = 0;               // 等待状态
 proc->cptr = proc->yptr = proc->optr = NULL;  // 进程关系指针
 ```
 
-这里有个细节要注意，`proc->pgdir`要初始化为`boot_pgdir_pa`而不是`boot_pgdir`。因为 RISC-V 的`satp`寄存器需要物理地址，如果填入虚拟地址会导致页表切换出错。
+这里有个细节要注意，`proc->pgdir`要初始化为 `boot_pgdir_pa`而不是 `boot_pgdir`。因为 RISC-V 的 `satp`寄存器需要物理地址，如果填入虚拟地址会导致页表切换出错。
 
 进程调度部分的代码基本保持不变，`proc_run()`函数仍然负责进程切换。不过在切换到用户进程时，页表的切换变得很重要。`lsatp()`函数加载新进程的页目录基地址，让进程拥有独立的虚拟地址空间。
 
-Lab5 还引入了完整的系统调用框架。当用户进程执行`ecall`指令时，CPU 会陷入内核态，由`trap.c`中的异常处理程序接管。系统调用号和参数通过寄存器传递，内核根据系统调用号分发到具体的处理函数，执行完毕后将返回值写入`a0`寄存器，最终通过`sret`指令返回用户态。
+Lab5 还引入了完整的系统调用框架。当用户进程执行 `ecall`指令时，CPU 会陷入内核态，由 `trap.c`中的异常处理程序接管。系统调用号和参数通过寄存器传递，内核根据系统调用号分发到具体的处理函数，执行完毕后将返回值写入 `a0`寄存器，最终通过 `sret`指令返回用户态。
 
 ## 练习 1: 加载应用程序并执行（需要编码）
 
-本练习的任务是实现`load_icode()`函数，这个函数负责将用户程序的 ELF 格式二进制文件加载到新创建进程的用户空间中。Lab5 中用户程序在编译时就被嵌入到内核镜像里了。Makefile 通过链接器的`--format=binary`选项将编译好的用户程序 ELF 文件作为原始二进制数据链接进内核，链接器会自动生成三个符号，分别指向二进制数据的起始地址、大小和结束地址。
+本练习的任务是实现 `load_icode()`函数，这个函数负责将用户程序的 ELF 格式二进制文件加载到新创建进程的用户空间中。Lab5 中用户程序在编译时就被嵌入到内核镜像里了。Makefile 通过链接器的 `--format=binary`选项将编译好的用户程序 ELF 文件作为原始二进制数据链接进内核，链接器会自动生成三个符号，分别指向二进制数据的起始地址、大小和结束地址。
 
 ### do_fork() 的实现
 
-进程创建流程在`do_fork()`函数中完成（`kern/process/proc.c:437-520`）。这次实验中我们需要修改两个地方：
+进程创建流程在 `do_fork()`函数中完成（`kern/process/proc.c:437-520`）。这次实验中我们需要修改两个地方：
 
 **修改点 1：设置父进程关系**（第 468-470 行）
 
@@ -53,7 +53,7 @@ proc->parent = current;          // 设置父进程为当前进程
 current->wait_state = 0;         // 确保当前进程的等待状态为0
 ```
 
-这里将子进程的`parent`指针指向当前进程，并将当前进程的`wait_state`设为 0，表示当前进程不在等待子进程。
+这里将子进程的 `parent`指针指向当前进程，并将当前进程的 `wait_state`设为 0，表示当前进程不在等待子进程。
 
 **修改点 2：插入进程到哈希表**（第 483-485 行）
 
@@ -63,7 +63,7 @@ current->wait_state = 0;         // 确保当前进程的等待状态为0
 set_links(proc);
 ```
 
-调用`set_links()`函数。在`set_links()`内部（第 160-170 行）：
+调用 `set_links()`函数。在 `set_links()`内部（第 160-170 行）：
 
 ```c
 static void
@@ -80,11 +80,11 @@ set_links(struct proc_struct *proc)
 }
 ```
 
-这个函数不仅建立了进程的父子关系和兄弟关系，还调用了`hash_proc(proc)`将进程加入哈希表。这个调用很重要，如果缺少这行，`find_proc()`就找不到新创建的进程，导致`wait()`等系统调用失败。
+这个函数不仅建立了进程的父子关系和兄弟关系，还调用了 `hash_proc(proc)`将进程加入哈希表。这个调用很重要，如果缺少这行，`find_proc()`就找不到新创建的进程，导致 `wait()`等系统调用失败。
 
 ### 时钟中断处理
 
-在`trap.c`的时钟中断处理中（第 127-136 行），我们添加了进程调度的触发机制：
+在 `trap.c`的时钟中断处理中（第 127-136 行），我们添加了进程调度的触发机制：
 
 ```c
 clock_set_next_event();
@@ -97,15 +97,15 @@ if (++ticks % TICK_NUM == 0) {
 }
 ```
 
-每隔`TICK_NUM`个时钟中断，就将当前进程的`need_resched`标志设为 1。这样在中断返回前，系统会检查这个标志，如果为 1 就调用`schedule()`切换到其他进程。这实现了时间片轮转的抢占式调度。
+每隔 `TICK_NUM`个时钟中断，就将当前进程的 `need_resched`标志设为 1。这样在中断返回前，系统会检查这个标志，如果为 1 就调用 `schedule()`切换到其他进程。这实现了时间片轮转的抢占式调度。
 
 ## 练习 2: 父进程复制自己的内存空间给子进程（需要编码）
 
-本练习要实现`copy_range()`函数中的页面复制逻辑。当父进程调用`fork()`创建子进程时，子进程需要获得父进程地址空间的完整副本。也就是要将父进程的每一个有效页面都复制一份给子进程，并在子进程的页表中建立相应的映射。
+本练习要实现 `copy_range()`函数中的页面复制逻辑。当父进程调用 `fork()`创建子进程时，子进程需要获得父进程地址空间的完整副本。也就是要将父进程的每一个有效页面都复制一份给子进程，并在子进程的页表中建立相应的映射。
 
 ### copy_range() 的实现
 
-在`pmm.c`的`copy_range()`函数中（第 426-460 行），我们需要填写页面复制的代码。这个函数以页为单位遍历指定的虚拟地址范围，对于每个有效的页表项，执行复制操作。
+在 `pmm.c`的 `copy_range()`函数中（第 426-460 行），我们需要填写页面复制的代码。这个函数以页为单位遍历指定的虚拟地址范围，对于每个有效的页表项，执行复制操作。
 
 ```c
 // get page from ptep
@@ -140,7 +140,7 @@ ret = page_insert(to, npage, start, perm);
 
 ### 性能问题
 
-这种页面复制方式虽然直接有效，但也存在效率问题。如果父进程占用了大量内存，`fork()`调用会消耗相当长的时间来复制所有页面。更严重的是，子进程可能在执行`exec()`替换自己的地址空间之前，根本不会访问这些复制的页面，导致复制操作完全是浪费。这个问题促使了写时复制(Copy-on-Write)机制的出现，这也是扩展练习中实现的优化技术。
+这种页面复制方式虽然直接有效，但也存在效率问题。如果父进程占用了大量内存，`fork()`调用会消耗相当长的时间来复制所有页面。更严重的是，子进程可能在执行 `exec()`替换自己的地址空间之前，根本不会访问这些复制的页面，导致复制操作完全是浪费。这个问题促使了写时复制(Copy-on-Write)机制的出现，这也是扩展练习中实现的优化技术。
 
 ## 练习 3: 阅读分析源代码，理解进程执行 fork/exec/wait/exit 的实现，以及系统调用的实现（不需要编码）
 
@@ -151,6 +151,7 @@ ret = page_insert(to, npage, start, perm);
 - wait()函数: 使进程挂起设置等待状态为 WT_CHILD，等待某个儿子进程进入 PROC_ZOMBIE 状态，并释放其内核堆栈结构体的内存空间。
 - exit()函数：释放几乎所有线程占用内存空间，并设置进程状态为 PROC_ZOMBIE，然后唤醒父进程。最后调度运行新的进程。
   > 请分析 fork/exec/wait/exit 的执行流程。重点关注哪些操作是在用户态完成，哪些是在内核态完成？
+  >
 - sys_fork()函数：
   - 用户态操作：用户不需要提供任何参数，调用 fork()函数，系统调用会返回子进程的 pid。（clon_flags 参数为 0）
   - 内核态操作：
@@ -237,7 +238,7 @@ COW 机制的实现涉及以下关键文件和函数：
 
 ##### 2.2 内存复制函数（`kern/mm/pmm.c: copy_range`）
 
-`copy_range`函数负责在 fork 时复制父进程的内存空间。我们为其添加了`share`参数，用于选择传统复制还是 COW 共享：
+`copy_range`函数负责在 fork 时复制父进程的内存空间。我们为其添加了 `share`参数，用于选择传统复制还是 COW 共享：
 
 ```c
 int copy_range(pde_t *to, pde_t *from, uintptr_t start, uintptr_t end,
@@ -282,13 +283,13 @@ int copy_range(pde_t *to, pde_t *from, uintptr_t start, uintptr_t end,
 我们做了这样几件事：
 
 1. 清除写权限：将父进程和子进程的 PTE 都设置为只读（`~PTE_W`），任何写操作都会触发 page fault
-2. 设置 COW 标志：添加`PTE_COW`标志，在 page fault 处理时区分是 COW 还是真正的权限错误
+2. 设置 COW 标志：添加 `PTE_COW`标志，在 page fault 处理时区分是 COW 还是真正的权限错误
 3. 引用计数管理：`page_ref_inc(page)`增加物理页面的引用计数，用于判断页面是否被多个进程共享
 4. TLB 刷新：修改父进程 PTE 后需要刷新 TLB，确保新的权限立即生效
 
 ##### 2.3 启用 COW（`kern/mm/vmm.c: dup_mmap`）
 
-在`do_fork`调用的`dup_mmap`函数中启用 COW 机制：
+在 `do_fork`调用的 `dup_mmap`函数中启用 COW 机制：
 
 ```c
 int dup_mmap(struct mm_struct *to, struct mm_struct *from)
@@ -309,7 +310,7 @@ int dup_mmap(struct mm_struct *to, struct mm_struct *from)
 }
 ```
 
-将`share`参数设置为 1 即可启用 COW 机制。
+将 `share`参数设置为 1 即可启用 COW 机制。
 
 ##### 2.4 页面错误处理（`kern/mm/vmm.c: do_pgfault`）
 
@@ -370,13 +371,13 @@ int do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
 我们做了这样几件事：
 
 1. 引用计数判断：`page_ref(page) > 1`表示页面被多个进程共享，需要复制；`= 1`表示只有当前进程使用，直接恢复写权限即可
-2. 页面复制：使用`memcpy`复制整个页面（4KB）的内容到新分配的页面
-3. 权限恢复：清除`PTE_COW`标志，设置`PTE_W`标志，使页面可写
+2. 页面复制：使用 `memcpy`复制整个页面（4KB）的内容到新分配的页面
+3. 权限恢复：清除 `PTE_COW`标志，设置 `PTE_W`标志，使页面可写
 4. 页表更新：`page_remove`会减少旧页面的引用计数，`page_insert`会建立新页面的映射
 
 ##### 2.5 异常处理集成（`kern/trap/trap.c`）
 
-在 trap handler 中调用`do_pgfault`处理页面错误：
+在 trap handler 中调用 `do_pgfault`处理页面错误：
 
 ```c
 case CAUSE_STORE_PAGE_FAULT:
@@ -548,20 +549,18 @@ kernel panic at kern/process/proc.c:529:
    - 证据：子进程读取到 `shared_data[0] = 0`（父进程初始化的值）
    - 说明：fork 后子进程能读取父进程的数据，证明页面确实被共享
    - 对应代码：`copy_range` 中 `page_ref_inc(page)` 增加引用计数，`page_insert` 创建共享映射
-
 2. 写时复制触发正确
 
    - 证据：子进程写入后得到 1000-1002，父进程写入后得到 2000-2002
    - 说明：写操作触发了 page fault，并成功复制页面
    - 对应代码：`do_pgfault` 检测到 `PTE_COW` 标志，调用 `alloc_page()` 和 `memcpy()`
-
 3. 数据隔离完整
 
    - 证据：子进程的值（1000+）和父进程的值（2000+）完全独立
    - 说明：COW 复制后，父子进程拥有各自的物理页面
    - 对应代码：`page_remove` 减少旧页面引用，`page_insert` 建立新映射
-
 4. 引用计数管理正确
+
    - 证据：系统最终能正常退出（"init check memory pass"）
    - 说明：页面引用计数正确，没有内存泄漏
    - 对应代码：`page_ref_inc/dec` 和 `page_remove` 的配合
@@ -777,11 +776,11 @@ return qemu_ram_addr_from_host_nofail(p);
 
 **get_physical_address** ( CPURISCVState *env, hwaddr *physical, int \*prot, target_ulong addr,
 
-​ int access_type, int mmu_idx )
+ int access_type, int mmu_idx )
 
 这个函数模拟了 RISC-V 页表的遍历过程。
 
-函数首先检查当前的 CPU 特权级别和内存管理配置。如果处于**机器模式（M-mode）** 或 **未启用 MMU**（如`sv32`、`sv39`等分页模式），则系统使用**物理地址直接映射**。此时，虚拟地址直接被当作物理地址返回，并赋予完整的读、写、执行权限。
+函数首先检查当前的 CPU 特权级别和内存管理配置。如果处于**机器模式（M-mode）** 或 **未启用 MMU**（如 `sv32`、`sv39`等分页模式），则系统使用**物理地址直接映射**。此时，虚拟地址直接被当作物理地址返回，并赋予完整的读、写、执行权限。
 
 如果启用了 MMU，函数会从**SATP（Supervisor Address Translation and Protection）寄存器**中获取**页表基地址**和当前激活的页表模式（例如 SV39、SV48）。
 
@@ -1051,7 +1050,7 @@ return retpc;
 
 看到 _future shared library load? (y or [n])_ 就心脏骤停。刚开始一直显示函数不存在，试图添加文件结果告诉我文件也不存在，直接 **红了** 。后面发现是在 lab2 里改了 QEMU := /path/to/your/qemu-4.1.1，lab5 里没改 😅 。
 
-还有不是所有的 qemu 的源码都能被添加断点。疑似只有`target/riscv`中的源码才能调试。
+还有不是所有的 qemu 的源码都能被添加断点。疑似只有 `target/riscv`中的源码才能调试。
 
 点名：
 

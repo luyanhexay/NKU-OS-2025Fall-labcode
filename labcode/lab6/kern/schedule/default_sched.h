@@ -5,6 +5,7 @@
 
 extern struct sched_class default_sched_class;
 extern struct sched_class stride_sched_class;
+extern struct sched_class sjf_sched_class;
+extern struct sched_class lottery_sched_class;
 
 #endif /* !__KERN_SCHEDULE_SCHED_RR_H__ */
-

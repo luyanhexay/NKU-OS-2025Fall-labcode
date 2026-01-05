@@ -952,12 +952,17 @@ kernel_execve(const char *name, unsigned char *binary, size_t size)
 
 #define KERNEL_EXECVE2(x, xstart, xsize) __KERNEL_EXECVE2(x, xstart, xsize)
 
+#define __KERNEL_EXECVE_NAME(x) KERNEL_EXECVE(x)
+#define KERNEL_EXECVE_VALUE(x) __KERNEL_EXECVE_NAME(x)
+
 // user_main - kernel thread used to exec a user program
 static int
 user_main(void *arg)
 {
 #ifdef TEST
     KERNEL_EXECVE2(TEST, TESTSTART, TESTSIZE);
+#elif defined(USER_TEST_PROG)
+    KERNEL_EXECVE_VALUE(USER_TEST_PROG);
 #else
     KERNEL_EXECVE(priority);
 #endif
