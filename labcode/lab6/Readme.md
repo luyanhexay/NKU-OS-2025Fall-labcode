@@ -468,7 +468,6 @@ sched result: 1 2 2 3 3
 证明过程：
 
 1. 定义变量：
-
    - 设进程 $i$ 的优先级为 $P_i$。
    - 设进程 $i$ 的步长为 $S_i = \frac{BIG\_STRIDE}{P_i}$。
    - 设在时间段 $T$ 内，进程 $i$ 被调度的次数（即获得的时间片数）为 $N_i$。
@@ -556,7 +555,6 @@ static struct proc_struct * stride_pick_next(struct run_queue *rq) {
 ### 测试方法与结果解读
 
 1. 测试操作顺序
-
    1. 修改 `kern/schedule/sched.c` 中的 `SCHED_POLICY` 宏为 `1`（或通过编译选项指定），确保内核启用 Stride 调度器。
    2. 执行 `make clean` 清理旧的目标文件。
    3. 执行 `make qemu` 启动系统。
@@ -693,3 +691,6 @@ make -C labcode/lab6 qemu DEFS+="-DSCHED_POLICY=0 -DTEST=schedbench -DTESTSTART=
 通过实际运行对比，我们验证了 SJF 在周转时间上的最优性，以及 Stride 在权重分配上的确定性。这些数据为我们在不同应用场景下选择合适的调度算法提供了实证支持。
 
 ## 分工
+
+- [仇科文](https://github.com/luyanhexay)：扩展练习 1、2
+- [杨宇翔](https://github.com/sheepspacefly)：练习 0、1、2

@@ -11,7 +11,7 @@
    usually split, and the remainder added to the list as another free block.
    Please see Page 196~198, Section 8.2 of Yan Wei Min's chinese book "Data Structure -- C programming language"
 */
-// LAB2 EXERCISE 1: YOUR CODE
+// LAB2 EXERCISE 1: 2312506
 // you should rewrite functions: default_init,default_init_memmap,default_alloc_pages, default_free_pages.
 /*
  * Details of FFMA
@@ -72,7 +72,7 @@ struct Page_bt {
     unsigned int property;          // the num of free block, used in first fit pm manager
     // unsigned char property;
     binary_tree_node_t node[2];
-    char vacancy[sizeof(list_entry_t) - 2 * sizeof(binary_tree_node_t)];  //Ìî¿Õ¶ÔÆë£¬±È½Ï°²È«
+    char vacancy[sizeof(list_entry_t) - 2 * sizeof(binary_tree_node_t)];  //ï¿½ï¿½Õ¶ï¿½ï¿½ë£¬ï¿½È½Ï°ï¿½È«
 };
 
 typedef struct {
@@ -142,7 +142,7 @@ buddy_init(void) {
 static void
 buddy_init_memmap(struct Page *base, size_t n) {
     assert(n > 0);
-    /*±£Ö¤nÊÇ2µÄÃÝ´Î·½*/
+    /*ï¿½ï¿½Ö¤nï¿½ï¿½2ï¿½ï¿½ï¿½Ý´Î·ï¿½*/
     if (!IS_POWER_OF_2(n))
         n = fixsize(n)>>1;
     binary_tree_root = (struct Page_bt *)base;
@@ -155,9 +155,9 @@ buddy_init_memmap(struct Page *base, size_t n) {
         /*LAB2 CHALLENGE 1: YUGE*/ 
         p->flags = p->property = 0;
         // p->offset = (uint64_t)p - (uint64_t)base;
-        // ³õÊ¼»¯Ã¿¸öÒ³¿òµÄ±êÖ¾ºÍÊôÐÔÐÅÏ¢£¬²¢½«Ò³¿òµÄÆ«ÒÆÁ¿ÉèÖÃÎªÏà¶ÔÓÚ»ùµØÖ·µÄÆ«ÒÆÁ¿
+        // ï¿½ï¿½Ê¼ï¿½ï¿½Ã¿ï¿½ï¿½Ò³ï¿½ï¿½Ä±ï¿½Ö¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò³ï¿½ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½Ú»ï¿½ï¿½ï¿½Ö·ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½
         set_page_ref(p, 0);
-        // Çå¿Õµ±Ç°Ò³¿òµÄ±êÖ¾ºÍÊôÐÔÐÅÏ¢£¬²¢½«Ò³¿òµÄÒýÓÃ¼ÆÊýÉèÖÃÎª0
+        // ï¿½ï¿½Õµï¿½Ç°Ò³ï¿½ï¿½Ä±ï¿½Ö¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îª0
 
     }
     int tree_size = 2*n-1;
@@ -218,7 +218,7 @@ buddy_alloc_pages(size_t n) {
     node->right_max = 0;
     unsigned char maxn = 0;
     
-    //×îºó½øÐÐ¸üÐÂ
+    //ï¿½ï¿½ï¿½ï¿½ï¿½Ð¸ï¿½ï¿½ï¿½
     for(block_size; index>0; block_size++){
         int parent = PARENT(index);
         binary_tree_node_t *pnode = get_node(parent);
@@ -353,7 +353,7 @@ buddy_check(void) {
 
     // basic_check();
     int tot_size = buddy_total_size_pages();
-    /*check 1: Õ¼ÁËÒ»°ë+1µÄ¿Õ¼äºóÎÞ·¨ÔÙ·ÖÅä*/
+    /*check 1: Õ¼ï¿½ï¿½Ò»ï¿½ï¿½+1ï¿½Ä¿Õ¼ï¿½ï¿½ï¿½Þ·ï¿½ï¿½Ù·ï¿½ï¿½ï¿½*/
     struct Page *p0 = alloc_pages(tot_size/2+1);
     assert(p0 != NULL);
     struct Page *p1 = alloc_pages(1);
@@ -365,7 +365,7 @@ buddy_check(void) {
     cprintf("grading: %d / %d points\n",score, sumscore);
     #endif
 
-    /*check 2: ·ÖÅä2^0,2^1 ... 2^(log2n-1),ÔÙ·ÖÅä1¸ö£¬·ÖÅä³É¹¦£¬ÔÙ·ÖÅä1¸ö£¬·ÖÅäÊ§°Ü*/
+    /*check 2: ï¿½ï¿½ï¿½ï¿½2^0,2^1 ... 2^(log2n-1),ï¿½Ù·ï¿½ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¹ï¿½ï¿½ï¿½ï¿½Ù·ï¿½ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½*/
     struct Page *p[log2n+2];
     for(int i=0; i<log2n; i++){
         p[i] = alloc_pages(1<<i);
@@ -385,7 +385,7 @@ buddy_check(void) {
     score += 1;
     cprintf("grading: %d / %d points\n",score, sumscore);
     #endif
-    /*check 3: ·ÖÅä2^(log2n-1),2^(log2n-2) ... 2^0,ÔÙ·ÖÅä1¸ö£¬·ÖÅä³É¹¦£¬ÔÙ·ÖÅä1¸ö£¬·ÖÅäÊ§°Ü*/
+    /*check 3: ï¿½ï¿½ï¿½ï¿½2^(log2n-1),2^(log2n-2) ... 2^0,ï¿½Ù·ï¿½ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¹ï¿½ï¿½ï¿½ï¿½Ù·ï¿½ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½*/
     for(int i=log2n-1; i>=0; i--){
         p[i] = alloc_pages(1<<i);
         assert(p[i] != NULL);
@@ -401,7 +401,7 @@ buddy_check(void) {
     score += 1;
     cprintf("grading: %d / %d points\n",score, sumscore);
     #endif
-    /*check 4: ·ÖÅän+1¸ö£¬·ÖÅäÊ§°Ü*/
+    /*check 4: ï¿½ï¿½ï¿½ï¿½n+1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½*/
     p0 = alloc_pages(tot_size+1);
     assert(p0 == NULL);
     free_page(p0);

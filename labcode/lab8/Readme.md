@@ -37,8 +37,6 @@ if (copy_files(clone_flags, proc) != 0)
 
 在 `do_fork` 中为新进程复制父进程的文件资源。
 
-
-
 ## 练习 1: 完成读文件操作的实现（需要编码）
 
 重点在于理解两个函数的作用：
@@ -111,8 +109,6 @@ if (copy_files(clone_flags, proc) != 0)
 ```
 
 同理，把剩下的部分写入即可。
-
-
 
 ## 练习 2: 完成基于文件系统的执行程序机制的实现（需要编码）
 
@@ -207,7 +203,7 @@ assert(pgdir_alloc_page(mm->pgdir, USTACKTOP - PGSIZE, PTE_USER) != NULL);
 mm_count_inc(mm);
 current->mm = mm;
 current->pgdir = PADDR(mm->pgdir);
-lsatp(PADDR(mm->pgdir)); 
+lsatp(PADDR(mm->pgdir));
 ```
 
 将新创建的 `mm_struct`设置为当前进程的内存管理结构，并把进程的页目录物理地址加载到页表基址寄存器，切换到此进程独立的虚拟地址空间 。
@@ -246,17 +242,15 @@ copy_to_user(mm, (void *)sp, &argc, sizeof(uintptr_t));
 ```c++
 struct trapframe *tf = current->tf;
 memset(tf, 0, sizeof(struct trapframe));
-tf->gpr.sp = sp;     
-tf->gpr.a0 = argc;     
+tf->gpr.sp = sp;
+tf->gpr.a0 = argc;
 tf->gpr.a1 = argv_user;
-tf->epc = elf.e_entry; 
+tf->epc = elf.e_entry;
 tf->status = sstatus & ~(SSTATUS_SPP | SSTATUS_SPIE | SSTATUS_SIE);
 tf->status |= SSTATUS_SPIE; // 启用用户态中断
 ```
 
 清空并重新设置当前进程的陷阱帧。
-
-
 
 ## 扩展练习 Challenge1：完成基于“UNIX 的 PIPE 机制”的设计方案
 
@@ -302,7 +296,6 @@ tf->status |= SSTATUS_SPIE; // 启用用户态中断
 ### 2. 接口设计与语义
 
 - `int sys_pipe(int fd_store[2])`:
-
   - 语义：创建一个管道，返回两个文件描述符。
   - 实现：
     1. 调用 `alloc_inode(pipe)` 创建一个新的管道 `inode`。
@@ -312,7 +305,6 @@ tf->status |= SSTATUS_SPIE; // 启用用户态中断
     5. 将 `fd` 返回给用户态。
 
 - `vop_read` (管道实现):
-
   - 语义：从管道缓冲区读取数据。
   - 行为：如果缓冲区为空且 `writers > 0`，则在 `read_sem` 上等待；如果 `writers == 0` 且缓冲区为空，返回 0 (EOF)。读取后通过 `write_sem` 唤醒写者。
 
@@ -334,7 +326,6 @@ tf->status |= SSTATUS_SPIE; // 启用用户态中断
 ucore 的 SFS 磁盘格式已经为链接机制预留了部分字段。
 
 - 硬链接 (Hard Link)：
-
   - 磁盘结构：`sfs_disk_inode` 中已有的 `nlinks` 字段用于记录引用计数。
   - 原理：多个 `sfs_disk_entry`（目录项）指向同一个 `ino`（inode 编号）。
 
@@ -346,12 +337,10 @@ ucore 的 SFS 磁盘格式已经为链接机制预留了部分字段。
 ### 2. 接口设计与语义
 
 - `int vfs_link(char *old_path, char *new_path)`:
-
   - 语义：创建硬链接。
   - 实现：通过 `vfs_lookup` 找到 `old_path` 的 `inode`，通过 `vfs_lookup_parent` 找到 `new_path` 的父目录。在父目录下创建新条目指向 `old_inode`，并增加 `old_inode->nlinks`。
 
 - `int vfs_symlink(char *target, char *link_path)`:
-
   - 语义：创建软链接。
   - 实现：创建一个新的 `SFS_TYPE_LINK` 类型的 `inode`，将 `target` 字符串写入其数据块。
 
@@ -361,13 +350,11 @@ ucore 的 SFS 磁盘格式已经为链接机制预留了部分字段。
 ### 3. 概要设计方案与同步互斥处理
 
 - 路径解析的修改：
-
   - 修改 `kern/fs/vfs/vfslookup.c` 中的 `vfs_lookup`。
   - 当 `vop_lookup` 返回的 `inode` 类型为 `SFS_TYPE_LINK` 时，系统应调用 `vop_readlink` 获取目标路径。
   - 递归处理：使用循环重新开始解析新路径。为了防止死循环（如 `A -> B -> A`），必须引入 `MAX_SYMLINK_DEPTH`（如 8 次）限制。
 
 - 同步与互斥：
-
   - SFS 级锁：在修改 `nlinks` 或创建目录项时，必须持有 `sfs_fs->mutex_sem`，确保磁盘元数据修改的原子性。
   - 引用计数管理：硬链接的删除（`vfs_unlink`）只是减少 `nlinks`。只有当 `nlinks == 0` 且内存中的 `ref_count` 也为 0 时，才真正释放磁盘块。这保证了“即使文件被删除，已打开该文件的进程仍能继续访问”的 UNIX 语义。
 
@@ -376,3 +363,6 @@ ucore 的 SFS 磁盘格式已经为链接机制预留了部分字段。
   - 禁止对目录创建硬链接，以避免文件系统出现环路，简化 `fsck` 和目录遍历逻辑。
 
 ## 分工
+
+- [仇科文](https://github.com/luyanhexay)：扩展练习 1、2
+- [杨宇翔](https://github.com/sheepspacefly)：练习 0、1、2
